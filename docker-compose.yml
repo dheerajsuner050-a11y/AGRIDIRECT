@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: agridirect_app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./agridirect.db
+      - JWT_SECRET=agridirect_live_production_secret_key_2026_super_secure
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - DEMO_MODE=true
+    volumes:
+      - ./agridirect.db:/app/agridirect.db
+      - ./static/uploads:/app/static/uploads
+    restart: always

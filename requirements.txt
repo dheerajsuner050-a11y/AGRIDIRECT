@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+python-jose[cryptography]
+python-multipart
+pillow
+opencv-python
+transformers
+torch
+httpx
+numpy
+bcrypt
+passlib[bcrypt]
+pymysql
+python-dotenv
+websockets

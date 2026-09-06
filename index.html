@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriDirect AI — Farm to Buyer Marketplace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }
+    .card-hover { transition: all 0.25s ease; }
+    .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.12); }
+    .status-step { transition: all 0.3s ease; }
+    .status-step.active { background: linear-gradient(135deg, #059669, #10b981); color: white; }
+    .status-step.completed { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+    .fade-in { animation: fadeIn 0.35s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .otp-box { letter-spacing: 0.6em; font-size: 1.8rem; font-weight: 800; text-align: center; }
+    .dragover-glow {
+      border-color: #059669 !important;
+      background-color: #ecfdf5 !important;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2) !important;
+      transform: scale(1.01);
+    }
+    .badge-average { background-color: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .badge-medium { background-color: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    .badge-good { background-color: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+  <!-- Navigation Bar -->
+  <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="navigate('landing')">
+        <div class="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-lg">🌾</div>
+        <span class="text-xl font-bold text-slate-800">AgriDirect <span class="text-emerald-600">AI</span></span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="navigate('grader')" class="px-3.5 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-100/90 hover:bg-emerald-200 rounded-lg border border-emerald-300 transition flex items-center gap-1.5 shadow-sm">
+          <span>🌱</span>
+          <span class="hidden sm:inline">AI Crop Grader</span>
+          <span class="sm:hidden">Grader</span>
+        </button>
+        <div id="authLinks" class="flex gap-2 items-center flex-wrap">
+          <button onclick="openAuthModal('login')" class="px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition">Sign In</button>
+          <button onclick="openAuthModal('signup')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-600 bg-slate-100 rounded-lg border border-slate-200 transition">Create Account</button>
+          <button onclick="quickAuth('farmer')" class="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition">Farmer Demo</button>
+          <button onclick="quickAuth('buyer')" class="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition">Buyer Demo</button>
+          <button onclick="quickAuth('delivery')" class="px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 rounded-lg border border-orange-200 hover:bg-orange-100 transition">🚚 Delivery Demo</button>
+        </div>
+        <div id="userProfile" class="hidden items-center gap-3">
+          <button onclick="showOrdersModal()" class="text-xs bg-slate-100 text-slate-800 px-3 py-1.5 rounded-lg border hover:bg-slate-200 font-medium transition">📦 My Orders</button>
+          <span id="userName" class="text-sm font-semibold text-slate-700"></span>
+          <span id="userRoleBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"></span>
+          <button onclick="logout()" class="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded border border-red-100 hover:bg-red-100 transition">Logout</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Toast Banner -->
+  <div id="toast" class="hidden fixed bottom-4 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium border border-slate-700"></div>
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
+
+    <!-- LANDING VIEW -->
+    <section id="view-landing" class="space-y-12 fade-in">
+      <div class="text-center py-12 max-w-3xl mx-auto space-y-4">
+        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-full uppercase tracking-wider">Live OpenCV Computer Vision</span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">Real Image Quality Verification & <span class="text-emerald-600">Live Mandi API.</span></h1>
+        <p class="text-slate-600 text-base sm:text-lg">Scan crops in real-time with pixel defect detection and trade directly with institutional buyers.</p>
+        <div class="flex justify-center gap-4 pt-4 flex-wrap">
+          <button onclick="navigate('grader')" class="px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-200 hover:from-emerald-700 hover:to-teal-700 transition flex items-center gap-2 text-sm">🌱 AI Crop Grader</button>
+          <a href="/delivery-dashboard.html" class="px-5 py-3 bg-orange-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:bg-orange-600 transition flex items-center gap-2 text-sm">🚚 Delivery Dashboard</a>
+          <a href="/tracking.html?order_id=1" class="px-5 py-3 bg-slate-900 text-white font-semibold rounded-xl shadow-lg hover:bg-slate-800 transition flex items-center gap-2 text-sm">🛰️ Live GPS Tracking</a>
+          <button onclick="quickAuth('farmer')" class="px-5 py-3 bg-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition text-sm">Enter as Farmer</button>
+          <button onclick="quickAuth('buyer')" class="px-5 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition text-sm">Enter as Buyer</button>
+        </div>
+      </div>
+
+      <!-- Live Mandi Rates -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+          <h2 class="font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full pulse-dot"></span>
+            Live Indian Mandi Market API Rates
+          </h2>
+          <span class="text-xs text-slate-500 font-medium">Synced Live</span>
+        </div>
+        <div id="mandiRatesList" class="grid grid-cols-2 md:grid-cols-5 gap-4"></div>
+      </div>
+    </section>
+
+    <!-- FARMER COMMAND CENTER VIEW -->
+    <section id="view-seller" class="hidden space-y-8 fade-in">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Farmer Command Center</h1>
+          <p class="text-sm text-slate-500">Run OpenCV image verification, grade crops, and publish listings.</p>
+        </div>
+        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs rounded-full font-medium">Status: Active Seller</span>
+      </div>
+
+      <!-- AI Grader Promo Banner for Farmers -->
+      <div class="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 rounded-2xl p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+        <div class="space-y-1">
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
+            <span>✨</span> New Feature
+          </div>
+          <h3 class="font-bold text-lg">AI Crop Recognition & Quality Grading Lab</h3>
+          <p class="text-xs text-slate-300 max-w-xl">
+            Detect Potato, Tomato, Garlic, Onion, or Carrot and measure OpenCV surface area to automatically grade produce into Average, Medium, or Good tiers.
+          </p>
+        </div>
+        <button onclick="navigate('grader')" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition whitespace-nowrap shadow-lg shadow-emerald-900/40">
+          Open AI Grader Lab →
+        </button>
+      </div>
+
+      <!-- OpenCV Diagnostic Section -->
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-800">1. OpenCV Pixel Verification & Defect Scanner</h3>
+          <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center space-y-3 hover:border-emerald-500 transition cursor-pointer">
+            <input type="file" id="cropImageInput" accept="image/*" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"/>
+            <p class="text-xs text-slate-500">Upload crop photo to run HSV color distribution & Rot contour analysis</p>
+          </div>
+          <button onclick="runCropAI()" class="w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 text-sm transition">Run Real Image Verification</button>
+        </div>
+
+        <div id="aiAnalysisCard" class="bg-slate-100 p-6 rounded-2xl border border-slate-200 flex flex-col justify-center">
+          <p class="text-sm text-slate-500 text-center">Upload an image file to trigger real-time pixel feature extraction and quality defect detection.</p>
+        </div>
+      </div>
+
+      <!-- Listing Publish Form (Enhanced with Image Upload & Auto-Detect) -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-bold text-slate-800">2. Upload Crop Image & Publish Listing</h3>
+
+        <!-- Crop Image Upload with Auto-Detect -->
+        <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center space-y-3 hover:border-emerald-500 transition">
+          <input type="file" id="listingImageInput" accept="image/jpeg,image/png,image/webp" onchange="handleListingImageUpload(event)" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"/>
+          <p class="text-xs text-slate-500">Upload a crop photo. AI will auto-detect the vegetable, quality grade, and live Mandi price.</p>
+        </div>
+
+        <!-- Auto-Detect Status -->
+        <div id="autoDetectStatus" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2 fade-in">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full pulse-dot"></span>
+            <span class="text-xs font-bold text-emerald-800">AI Auto-Detection Complete</span>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div><span class="text-slate-500">Detected:</span> <b id="adCrop" class="text-slate-800">--</b></div>
+            <div><span class="text-slate-500">Quality:</span> <b id="adQuality" class="text-slate-800">--</b></div>
+            <div><span class="text-slate-500">Mandi Price:</span> <b id="adMandiPrice" class="text-emerald-700">--</b></div>
+            <div><span class="text-slate-500">Suggested:</span> <b id="adSuggested" class="text-emerald-700">--</b></div>
+          </div>
+        </div>
+
+        <!-- Image Preview -->
+        <div id="listingImagePreview" class="hidden">
+          <img id="listingPreviewImg" src="" class="h-28 w-auto rounded-xl border object-cover" alt="Uploaded Crop"/>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Crop Name</label>
+            <input id="listCropName" type="text" value="Potato" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Quality Tier</label>
+            <select id="listQuality" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white">
+              <option value="Good">Good</option>
+              <option value="Medium">Medium</option>
+              <option value="Average">Average</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Quantity (kg)</label>
+            <input id="listQuantity" type="number" value="500" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Price per kg (₹)</label>
+            <input id="listPrice" type="number" value="27" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+          </div>
+        </div>
+        <button onclick="publishListing()" class="px-5 py-2.5 bg-slate-900 text-white rounded-lg font-medium text-sm hover:bg-slate-800 transition">Publish Listing to Marketplace</button>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- AI CROP RECOGNITION & QUALITY GRADER VIEW -->
+    <!-- ========================================== -->
+    <section id="view-grader" class="hidden space-y-8 fade-in">
+      <!-- Header Banner -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+        <div class="space-y-3 z-10 max-w-2xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-400/30 rounded-full text-xs font-semibold text-emerald-300">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+            OpenCV Contour Area & Zero-Shot Classification
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            AI Crop Recognition & <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">Quality Grading</span>
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+            Upload a single vegetable photo to identify the crop and compute pixel-accurate contour surface area to grade quality tiers for farmers.
+          </p>
+          <div class="flex flex-wrap items-center gap-2 pt-2 text-xs">
+            <span class="text-slate-400 font-medium">Target Vegetables:</span>
+            <span class="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur border border-white/10 font-semibold text-white">🥔 Potato</span>
+            <span class="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur border border-white/10 font-semibold text-white">🍅 Tomato</span>
+            <span class="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur border border-white/10 font-semibold text-white">🧄 Garlic</span>
+            <span class="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur border border-white/10 font-semibold text-white">🧅 Onion</span>
+            <span class="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur border border-white/10 font-semibold text-white">🥕 Carrot</span>
+          </div>
+        </div>
+
+        <!-- Quality Tiers Legend Mini-Card -->
+        <div class="z-10 bg-white/10 backdrop-blur-md border border-white/15 p-5 rounded-2xl space-y-2.5 text-xs text-slate-200 min-w-[260px]">
+          <div class="font-bold text-white uppercase tracking-wider text-[11px] pb-2 border-b border-white/10 flex items-center justify-between">
+            <span>Quality Tier Standards</span>
+            <span class="text-[10px] text-emerald-400 font-normal">Contour Area</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Average:</span>
+            <span class="font-mono font-semibold text-amber-300">&lt; 15,000 px²</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span> Medium:</span>
+            <span class="font-mono font-semibold text-blue-300">15,000 – 35,000 px²</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Good:</span>
+            <span class="font-mono font-semibold text-emerald-300">&gt; 35,000 px²</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Interactive Grading Workspace -->
+      <div class="grid lg:grid-cols-12 gap-8">
+        <!-- Left: Upload & Preview Column -->
+        <div class="lg:col-span-6 space-y-6">
+          <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+            <div class="flex items-center justify-between">
+              <h2 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <span>📸</span> Image Upload & Drag-and-Drop
+              </h2>
+              <span class="text-xs text-slate-500 font-medium">JPG, PNG, WEBP</span>
+            </div>
+
+            <!-- Drag-and-Drop Zone -->
+            <div id="graderDropzone"
+                 class="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50/70 hover:bg-emerald-50/40 rounded-2xl p-8 text-center transition-all cursor-pointer space-y-3 group"
+                 onclick="document.getElementById('graderFileInput').click()">
+              <input type="file" id="graderFileInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="hidden" onchange="handleGraderFileSelect(event)" />
+              
+              <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 group-hover:bg-emerald-200 text-emerald-700 flex items-center justify-center text-3xl transition-transform group-hover:scale-110 shadow-sm">
+                📤
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-800">
+                  <span class="text-emerald-600 font-bold">Click to upload</span> or drag & drop image
+                </p>
+                <p class="text-xs text-slate-500 mt-1">Supports JPG, PNG, WEBP files up to 15MB</p>
+              </div>
+            </div>
+
+            <!-- Preview Card (Hidden until file selected) -->
+            <div id="graderPreviewCard" class="hidden border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-3 fade-in">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Image Preview</span>
+                <button type="button" onclick="clearGraderImage()" class="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1">
+                  ✕ Remove
+                </button>
+              </div>
+              <div class="relative rounded-xl overflow-hidden bg-slate-900/5 max-h-72 flex items-center justify-center border border-slate-200">
+                <img id="graderPreviewImg" src="" alt="Crop Preview" class="max-h-72 w-auto object-contain rounded-xl" />
+              </div>
+              <div class="flex items-center justify-between text-xs text-slate-600 px-1">
+                <span id="graderFileName" class="truncate max-w-[200px] font-medium text-slate-700"></span>
+                <span id="graderFileSize" class="font-mono text-slate-500"></span>
+              </div>
+            </div>
+
+            <!-- Submit Action Button -->
+            <button id="graderSubmitBtn" onclick="runCropGrading()"
+                    class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all text-sm flex items-center justify-center gap-2">
+              <span id="graderBtnSpinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span id="graderBtnText">⚡ Grade Crop & Measure Surface Area</span>
+            </button>
+
+            <!-- Quick Demo Crop Presets -->
+            <div class="pt-4 border-t border-slate-100 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-600">Try Instant Demo Samples:</span>
+                <span class="text-[11px] text-slate-400">One-click evaluation</span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="loadSampleCrop('Tomato', 38200)" class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg font-medium border border-slate-200 transition">🍅 Tomato (Good)</button>
+                <button type="button" onclick="loadSampleCrop('Potato', 24000)" class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg font-medium border border-slate-200 transition">🥔 Potato (Medium)</button>
+                <button type="button" onclick="loadSampleCrop('Garlic', 12500)" class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg font-medium border border-slate-200 transition">🧄 Garlic (Average)</button>
+                <button type="button" onclick="loadSampleCrop('Onion', 29000)" class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg font-medium border border-slate-200 transition">🧅 Onion (Medium)</button>
+                <button type="button" onclick="loadSampleCrop('Carrot', 42000)" class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg font-medium border border-slate-200 transition">🥕 Carrot (Good)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Results Card Column -->
+        <div class="lg:col-span-6 space-y-6">
+          <div id="graderResultsCard" class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-6 min-h-[460px] flex flex-col justify-center">
+            <!-- Default Placeholder State -->
+            <div id="graderPlaceholder" class="text-center py-12 space-y-4">
+              <div class="w-20 h-20 mx-auto rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center text-4xl border border-slate-200">
+                🔬
+              </div>
+              <div class="space-y-1 max-w-sm mx-auto">
+                <h3 class="font-bold text-slate-800 text-base">No Crop Graded Yet</h3>
+                <p class="text-xs text-slate-500">
+                  Select or drag a photo of a Potato, Tomato, Garlic, Onion, or Carrot on the left to run zero-shot recognition and OpenCV surface area quality grading.
+                </p>
+              </div>
+            </div>
+
+            <!-- Active Results Card (Hidden by default) -->
+            <div id="graderOutputContent" class="hidden space-y-6 fade-in">
+              <!-- Result Header -->
+              <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                  <span id="resultCropIcon" class="text-4xl p-2.5 rounded-2xl bg-slate-100 border">🍅</span>
+                  <div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Detected Vegetable</span>
+                    <h2 id="resultCropName" class="text-2xl font-extrabold text-slate-900">Tomato</h2>
+                  </div>
+                </div>
+                <div id="resultQualityBadge" class="px-3.5 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-sm">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+
+              <!-- Surface Area Metric Card -->
+              <div class="bg-gradient-to-br from-slate-50 to-slate-100/80 p-5 rounded-2xl border border-slate-200 space-y-3">
+                <div class="flex justify-between items-end">
+                  <div>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Calculated Surface Area</span>
+                    <div id="resultSurfaceArea" class="text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">38,200 px²</div>
+                  </div>
+                  <span id="resultTierLabel" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-white border text-slate-700 shadow-sm">
+                    Tier: Good Grade
+                  </span>
+                </div>
+
+                <!-- Surface Area Visual Threshold Gauge -->
+                <div class="space-y-1.5 pt-2">
+                  <div class="h-3 w-full bg-slate-200 rounded-full overflow-hidden flex relative">
+                    <div class="h-full bg-amber-400 border-r border-white/50" style="width: 25%;" title="Average: < 15,000 px²"></div>
+                    <div class="h-full bg-blue-400 border-r border-white/50" style="width: 35%;" title="Medium: 15,000 - 35,000 px²"></div>
+                    <div class="h-full bg-emerald-500" style="width: 40%;" title="Good: > 35,000 px²"></div>
+                  </div>
+                  <div class="flex justify-between text-[10px] font-semibold text-slate-500">
+                    <span class="text-amber-700">Average (&lt; 15,000 px²)</span>
+                    <span class="text-blue-700">Medium (15k–35k px²)</span>
+                    <span class="text-emerald-700">Good (&gt; 35,000 px²)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Confidence Metric -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-slate-600">Classification Confidence:</span>
+                  <span id="resultConfidenceText" class="text-emerald-700 font-bold">96%</span>
+                </div>
+                <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden border">
+                  <div id="resultConfidenceBar" class="h-full bg-emerald-600 transition-all duration-500" style="width: 96%;"></div>
+                </div>
+              </div>
+
+              <!-- Raw API JSON Response Box -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-600 flex items-center gap-1">
+                    <span>📋</span> API JSON Response (/api/grade-crop)
+                  </span>
+                  <button onclick="copyGraderJSON()" class="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold transition">
+                    Copy JSON
+                  </button>
+                </div>
+                <pre id="resultJsonPayload" class="bg-slate-900 text-emerald-400 p-3.5 rounded-xl text-xs font-mono overflow-x-auto shadow-inner border border-slate-800"></pre>
+              </div>
+
+              <!-- Farmer Quick Actions -->
+              <div class="pt-2 flex flex-col sm:flex-row gap-3">
+                <button onclick="applyToSellerListing()" class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
+                  <span>🌾</span> Create Listing with this Crop
+                </button>
+                <button onclick="clearGraderImage()" class="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 transition">
+                  Grade Another
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUYER VIEW -->
+    <section id="view-buyer" class="hidden space-y-8 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Direct Marketplace</h1>
+          <p class="text-sm text-slate-500">Source verified produce directly from farm gates.</p>
+        </div>
+
+        <div class="flex gap-2">
+          <input id="searchInput" type="text" placeholder="Search crop..." oninput="loadMarketplace()" class="px-3.5 py-2 border rounded-xl text-sm w-48 shadow-sm"/>
+          <input id="maxPriceInput" type="number" placeholder="Max ₹/kg" oninput="loadMarketplace()" class="px-3.5 py-2 border rounded-xl text-sm w-28 shadow-sm"/>
+        </div>
+      </div>
+
+      <div id="marketListingsGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- DELIVERY PARTNER DASHBOARD VIEW -->
+    <!-- ========================================== -->
+    <section id="view-delivery" class="hidden space-y-8 fade-in">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">🚚 Delivery Partner Dashboard</h1>
+          <p class="text-sm text-slate-500">Manage your deliveries, update statuses, and track earnings.</p>
+        </div>
+        <div class="flex gap-2 items-center">
+          <button id="availabilityToggle" onclick="toggleAvailability()" class="px-4 py-2 text-xs font-semibold rounded-xl border transition"></button>
+        </div>
+      </div>
+
+      <!-- Profile Stats Cards -->
+      <div id="deliveryProfileStats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Active Assignments -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-2 h-2 bg-orange-500 rounded-full pulse-dot"></span>
+            Active Delivery Assignments
+          </h3>
+          <button onclick="loadDeliveryDashboard()" class="text-xs text-emerald-600 font-semibold hover:text-emerald-700 transition">↻ Refresh</button>
+        </div>
+        <div id="activeAssignmentsList" class="space-y-4">
+          <p class="text-sm text-slate-400 text-center py-6">Loading assignments...</p>
+        </div>
+      </div>
+
+      <!-- Completed Deliveries -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-bold text-slate-800">✅ Completed Deliveries</h3>
+        <div id="completedAssignmentsList" class="space-y-3">
+          <p class="text-sm text-slate-400 text-center py-4">No completed deliveries yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHECKOUT MODAL -->
+    <div id="checkoutModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border fade-in">
+        <div class="flex justify-between items-center border-b pb-3">
+          <h3 class="font-bold text-slate-800">Logistics Routing & Order Review</h3>
+          <button onclick="closeCheckout()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        </div>
+        <div id="routeDetails" class="space-y-3 text-sm"></div>
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-600">Order Quantity (kg)</label>
+          <input id="orderQty" type="number" class="w-full px-3 py-2 border rounded-lg text-sm" oninput="recalculateOrderSummary()" />
+          <label class="text-xs font-semibold text-slate-600">Delivery Address</label>
+          <input id="orderAddress" type="text" value="Plot 42, Central Cold Storage, Dewas" class="w-full px-3 py-2 border rounded-lg text-sm" />
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-xl space-y-1 text-sm border">
+          <div class="flex justify-between"><span>Produce Subtotal:</span> <span id="summarySubtotal" class="font-semibold">₹0</span></div>
+          <div class="flex justify-between"><span>Logistics Fee:</span> <span id="summaryLogistics" class="font-semibold">₹0</span></div>
+          <div class="flex justify-between text-base font-bold border-t pt-2"><span>Total Payable:</span> <span id="summaryTotal" class="text-emerald-700">₹0</span></div>
+        </div>
+
+        <button onclick="confirmOrder()" class="w-full py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition">Confirm Order & Dispatch Truck</button>
+      </div>
+    </div>
+
+    <!-- UNIFIED AUTH MODAL (Sign Up for New Users & Sign In for Existing Users) -->
+    <div id="authModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border fade-in">
+        <div class="flex justify-between items-center border-b pb-3">
+          <div class="flex gap-4">
+            <button id="authTabSignUpBtn" onclick="switchAuthTab('signup')" class="font-bold text-slate-800 border-b-2 border-emerald-600 pb-1 text-base transition">Create Account</button>
+            <button id="authTabSignInBtn" onclick="switchAuthTab('login')" class="font-semibold text-slate-400 border-b-2 border-transparent pb-1 text-base hover:text-slate-700 transition">Sign In</button>
+          </div>
+          <button onclick="closeAuthModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        </div>
+
+        <!-- TAB 1: CREATE ACCOUNT (SIGN UP) -->
+        <div id="authSignUpTab" class="space-y-3 text-sm">
+          <div><label class="text-xs font-semibold text-slate-600">Full Name</label><input id="regName" type="text" placeholder="e.g. Ramesh Patel" class="w-full mt-1 px-3 py-2 border rounded-lg"/></div>
+          <div><label class="text-xs font-semibold text-slate-600">Email Address</label><input id="regEmail" type="email" placeholder="name@domain.com" class="w-full mt-1 px-3 py-2 border rounded-lg"/></div>
+          <div><label class="text-xs font-semibold text-slate-600">Phone</label><input id="regPhone" type="text" placeholder="9876543210" class="w-full mt-1 px-3 py-2 border rounded-lg"/></div>
+          <div><label class="text-xs font-semibold text-slate-600">Password</label><input id="regPassword" type="password" placeholder="••••••••" class="w-full mt-1 px-3 py-2 border rounded-lg"/></div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Account Role</label>
+            <select id="regRole" onchange="toggleDeliveryFields()" class="w-full mt-1 px-3 py-2 border rounded-lg bg-white">
+              <option value="seller">Farmer / Seller</option>
+              <option value="buyer">Institutional Buyer</option>
+              <option value="delivery">🚚 Delivery Partner</option>
+            </select>
+          </div>
+
+          <!-- Delivery Partner Extra Fields -->
+          <div id="deliveryRegFields" class="hidden space-y-3 bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <p class="text-xs font-bold text-orange-800 flex items-center gap-1">🚚 Delivery Partner Details</p>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Vehicle Type</label>
+              <select id="regVehicleType" class="w-full mt-1 px-3 py-2 border rounded-lg bg-white">
+                <option value="Bike">🏍️ Bike / Two-wheeler</option>
+                <option value="Van">🚐 Van / Mini-truck</option>
+                <option value="Truck">🚛 Truck</option>
+                <option value="Tempo">🛻 Tempo / Three-wheeler</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-600">License / Vehicle Number</label>
+              <input id="regLicenseNumber" type="text" placeholder="e.g. MP09AB1234" class="w-full mt-1 px-3 py-2 border rounded-lg"/>
+            </div>
+          </div>
+
+          <button onclick="submitRegister()" class="w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition shadow-md">Create New Account</button>
+
+          <p class="text-xs text-center text-slate-500 pt-1">
+            Already have an account? <a href="javascript:void(0)" onclick="switchAuthTab('login')" class="text-emerald-600 font-bold hover:underline">Sign In here</a>
+          </p>
+        </div>
+
+        <!-- TAB 2: SIGN IN (EXISTING USER LOGIN) -->
+        <div id="authSignInTab" class="hidden space-y-4 text-sm">
+          <div class="space-y-3">
+            <div><label class="text-xs font-semibold text-slate-600">Email Address</label><input id="loginEmail" type="email" placeholder="name@domain.com" class="w-full mt-1 px-3 py-2 border rounded-lg"/></div>
+            <div><label class="text-xs font-semibold text-slate-600">Password</label><input id="loginPassword" type="password" placeholder="••••••••" class="w-full mt-1 px-3 py-2 border rounded-lg"/></div>
+            <button onclick="submitLogin()" class="w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition shadow-md">Sign In to Account</button>
+          </div>
+
+          <div class="relative my-2">
+            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+            <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-slate-400 font-semibold">Or Sign In With Mobile OTP</span></div>
+          </div>
+
+          <div class="space-y-3 bg-slate-50 border rounded-xl p-3">
+            <div>
+              <label class="text-xs font-semibold text-slate-600">Registered Phone Number</label>
+              <div class="flex gap-2 mt-1">
+                <input id="otpPhone" type="text" placeholder="9876543210" class="flex-1 px-3 py-2 border rounded-lg text-sm bg-white"/>
+                <button onclick="sendLoginOTP()" class="px-3 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700 transition whitespace-nowrap">Send OTP</button>
+              </div>
+            </div>
+            <div id="otpInputGroup" class="hidden space-y-2">
+              <label class="text-xs font-semibold text-slate-600">Enter 6-Digit OTP</label>
+              <div class="flex gap-2">
+                <input id="otpCode" type="text" placeholder="123456" maxlength="6" class="flex-1 px-3 py-2 border rounded-lg text-sm bg-white tracking-widest font-bold text-center"/>
+                <button onclick="verifyLoginOTP()" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 transition">Verify & Login</button>
+              </div>
+              <p id="otpPreviewNotice" class="text-[11px] text-emerald-700 font-semibold text-center"></p>
+            </div>
+          </div>
+
+          <p class="text-xs text-center text-slate-500 pt-1">
+            Need a new account? <a href="javascript:void(0)" onclick="switchAuthTab('signup')" class="text-emerald-600 font-bold hover:underline">Create Account here</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS MODAL (Enhanced with delivery tracking) -->
+    <div id="ordersModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto fade-in">
+        <div class="flex justify-between items-center border-b pb-3">
+          <h3 class="font-bold text-slate-800">📦 Order History & Live Dispatch</h3>
+          <button onclick="closeOrdersModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        </div>
+        <div id="ordersList" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- CART MODAL -->
+    <div id="cartModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border max-h-[85vh] overflow-y-auto fade-in">
+        <div class="flex justify-between items-center border-b pb-3">
+          <h3 class="font-bold text-slate-800">🛒 Shopping Cart</h3>
+          <button onclick="closeCartModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        </div>
+        <div id="cartItemsList" class="space-y-3"></div>
+        <div id="cartSummary" class="bg-slate-50 p-4 rounded-xl space-y-1 text-sm border">
+          <div class="flex justify-between"><span>Items Subtotal:</span> <span id="cartSubtotal" class="font-semibold">₹0</span></div>
+          <div class="flex justify-between"><span>Est. Delivery Fee:</span> <span id="cartDeliveryFee" class="font-semibold">₹150+</span></div>
+          <div class="flex justify-between text-base font-bold border-t pt-2"><span>Estimated Total:</span> <span id="cartTotal" class="text-emerald-700">₹0</span></div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-600">Delivery Address</label>
+          <input id="cartDeliveryAddress" type="text" value="Plot 42, Central Cold Storage, Dewas" class="w-full px-3 py-2 border rounded-lg text-sm" />
+        </div>
+        <div class="flex gap-3">
+          <button onclick="clearCart()" class="px-4 py-2.5 border rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear Cart</button>
+          <button onclick="checkoutCart()" class="flex-1 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition">🛒 Checkout All Items</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOATING CART BUTTON -->
+    <button id="cartFloatingBtn" onclick="openCartModal()" class="hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-2xl shadow-emerald-200 flex items-center justify-center text-xl transition-transform hover:scale-110">
+      🛒
+      <span id="cartBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
+    </button>
+
+  </main>
+
+  <script>
+    const API_BASE = "/api";
+    let token = localStorage.getItem("token") || null;
+    let currentUserRole = localStorage.getItem("role") || null;
+    let selectedListing = null;
+    let activeQuote = null;
+    let uploadedImageUrl = null; // Holds uploaded crop image URL for listing
+
+    // --- CSRF Token Helper ---
+    function getCSRFToken() {
+      const match = document.cookie.match(/agridirect_csrf_token=([^;]+)/);
+      return match ? match[1] : "";
+    }
+
+    function csrfHeaders(extra = {}) {
+      return { "X-CSRF-Token": getCSRFToken(), ...extra };
+    }
+
+    // --- Shopping Cart Manager (localStorage) ---
+    const CartManager = {
+      KEY: "agridirect_cart",
+      getItems() {
+        try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch { return []; }
+      },
+      addItem(listing) {
+        const items = this.getItems();
+        const existing = items.find(i => i.id === listing.id);
+        if (existing) {
+          existing.quantity += (listing.quantity || 50);
+        } else {
+          items.push({
+            id: listing.id,
+            crop: listing.crop,
+            price: listing.price,
+            seller_name: listing.seller_name,
+            seller_location: listing.seller_location,
+            image: listing.image,
+            quality: listing.quality,
+            max_quantity: listing.max_quantity,
+            quantity: listing.quantity || 50
+          });
+        }
+        localStorage.setItem(this.KEY, JSON.stringify(items));
+        this.updateBadge();
+      },
+      removeItem(listingId) {
+        let items = this.getItems().filter(i => i.id !== listingId);
+        localStorage.setItem(this.KEY, JSON.stringify(items));
+        this.updateBadge();
+      },
+      updateQuantity(listingId, qty) {
+        const items = this.getItems();
+        const item = items.find(i => i.id === listingId);
+        if (item) { item.quantity = qty; }
+        localStorage.setItem(this.KEY, JSON.stringify(items));
+      },
+      clear() {
+        localStorage.removeItem(this.KEY);
+        this.updateBadge();
+      },
+      count() { return this.getItems().length; },
+      total() {
+        return this.getItems().reduce((sum, i) => sum + (i.price * i.quantity), 0);
+      },
+      updateBadge() {
+        const badge = document.getElementById("cartBadge");
+        const btn = document.getElementById("cartFloatingBtn");
+        if (badge) {
+          const c = this.count();
+          badge.innerText = c;
+          badge.classList.toggle("hidden", c === 0);
+        }
+        if (btn) {
+          btn.classList.toggle("hidden", currentUserRole !== "buyer");
+        }
+      }
+    };
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3500);
+    }
+
+    function navigate(view) {
+      document.getElementById("view-landing").classList.add("hidden");
+      document.getElementById("view-seller").classList.add("hidden");
+      document.getElementById("view-buyer").classList.add("hidden");
+      document.getElementById("view-delivery").classList.add("hidden");
+      document.getElementById("view-grader").classList.add("hidden");
+
+      if (view === "landing") document.getElementById("view-landing").classList.remove("hidden");
+      if (view === "seller") document.getElementById("view-seller").classList.remove("hidden");
+      if (view === "grader") document.getElementById("view-grader").classList.remove("hidden");
+      if (view === "buyer") {
+        document.getElementById("view-buyer").classList.remove("hidden");
+        loadMarketplace();
+      }
+      if (view === "delivery") {
+        document.getElementById("view-delivery").classList.remove("hidden");
+        loadDeliveryDashboard();
+      }
+    }
+
+    function getViewForRole(role) {
+      if (role === "seller") return "seller";
+      if (role === "buyer") return "buyer";
+      if (role === "delivery") return "delivery";
+      return "landing";
+    }
+
+    function setRoleBadge(role) {
+      const badge = document.getElementById("userRoleBadge");
+      const colors = {
+        seller: "bg-emerald-100 text-emerald-800",
+        buyer: "bg-blue-100 text-blue-800",
+        delivery: "bg-orange-100 text-orange-800"
+      };
+      const labels = { seller: "Farmer", buyer: "Buyer", delivery: "Delivery" };
+      badge.className = `text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${colors[role] || "bg-slate-100 text-slate-600"}`;
+      badge.innerText = labels[role] || role;
+    }
+
+    async function quickAuth(role) {
+      const creds = {
+        farmer: { email: "farmer@agridirect.com", password: "farmer123" },
+        buyer: { email: "buyer@agridirect.com", password: "buyer123" },
+        delivery: { email: "delivery@agridirect.com", password: "delivery123" }
+      };
+      const { email, password } = creds[role];
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        token = data.access_token;
+        currentUserRole = data.role;
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", currentUserRole);
+
+        document.getElementById("authLinks").classList.add("hidden");
+        document.getElementById("userProfile").classList.remove("hidden");
+        document.getElementById("userProfile").classList.add("flex");
+        document.getElementById("userName").innerText = data.name;
+        setRoleBadge(data.role);
+
+        showToast(`Logged in as ${data.name}`);
+        navigate(getViewForRole(data.role));
+      } catch (err) {
+        showToast("Auth failed: " + (err.message || "Unknown error"));
+      }
+    }
+
+    function logout() {
+      token = null;
+      currentUserRole = null;
+      localStorage.clear();
+      document.getElementById("authLinks").classList.remove("hidden");
+      document.getElementById("userProfile").classList.add("hidden");
+      document.getElementById("userProfile").classList.remove("flex");
+      navigate("landing");
+    }
+
+    // --- Unified Authentication Modal Logic ---
+    function openAuthModal(tab = 'signup') {
+      document.getElementById("authModal").classList.remove("hidden");
+      switchAuthTab(tab);
+    }
+    function closeAuthModal() {
+      document.getElementById("authModal").classList.add("hidden");
+    }
+
+    function openRegisterModal() { openAuthModal('signup'); }
+    function closeRegisterModal() { closeAuthModal(); }
+
+    function switchAuthTab(tab) {
+      const signUpTab = document.getElementById("authSignUpTab");
+      const signInTab = document.getElementById("authSignInTab");
+      const signUpBtn = document.getElementById("authTabSignUpBtn");
+      const signInBtn = document.getElementById("authTabSignInBtn");
+
+      if (tab === 'signup') {
+        signUpTab.classList.remove("hidden");
+        signInTab.classList.add("hidden");
+        signUpBtn.className = "font-bold text-slate-800 border-b-2 border-emerald-600 pb-1 text-base transition";
+        signInBtn.className = "font-semibold text-slate-400 border-b-2 border-transparent pb-1 text-base hover:text-slate-700 transition";
+      } else {
+        signUpTab.classList.add("hidden");
+        signInTab.classList.remove("hidden");
+        signUpBtn.className = "font-semibold text-slate-400 border-b-2 border-transparent pb-1 text-base hover:text-slate-700 transition";
+        signInBtn.className = "font-bold text-slate-800 border-b-2 border-emerald-600 pb-1 text-base transition";
+      }
+    }
+
+    function toggleDeliveryFields() {
+      const role = document.getElementById("regRole").value;
+      const fields = document.getElementById("deliveryRegFields");
+      if (role === "delivery") {
+        fields.classList.remove("hidden");
+      } else {
+        fields.classList.add("hidden");
+      }
+    }
+
+    async function submitRegister() {
+      const role = document.getElementById("regRole").value;
+      const isDelivery = (role === "delivery");
+      const endpoint = isDelivery ? `${API_BASE}/delivery/auth/register` : `${API_BASE}/auth/register`;
+
+      const payload = {
+        name: document.getElementById("regName").value.trim(),
+        email: document.getElementById("regEmail").value.trim(),
+        phone: document.getElementById("regPhone").value.trim(),
+        password: document.getElementById("regPassword").value,
+        role: role
+      };
+
+      if (!payload.name || !payload.email || !payload.phone || !payload.password) {
+        return showToast("Please fill in all required fields.");
+      }
+
+      if (isDelivery) {
+        payload.vehicle_type = document.getElementById("regVehicleType").value;
+        payload.license_number = document.getElementById("regLicenseNumber").value;
+        if (!payload.license_number) {
+          return showToast("Please enter your vehicle/license number");
+        }
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.detail && data.detail.includes("already registered")) {
+            showToast("⚠️ Account exists! Switching to Sign In...");
+            document.getElementById("loginEmail").value = payload.email;
+            switchAuthTab('login');
+            return;
+          }
+          throw new Error(data.detail || "Registration failed");
+        }
+
+        token = data.access_token;
+        currentUserRole = isDelivery ? "delivery" : (data.user ? data.user.role : (data.role || role));
+        const userName = data.user ? data.user.name : (data.partner ? data.partner.name : payload.name);
+
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", currentUserRole);
+
+        document.getElementById("authLinks").classList.add("hidden");
+        document.getElementById("userProfile").classList.remove("hidden");
+        document.getElementById("userProfile").classList.add("flex");
+        document.getElementById("userName").innerText = userName;
+        setRoleBadge(currentUserRole);
+
+        closeAuthModal();
+        showToast(`✅ Welcome, ${userName}! Account registered successfully.`);
+        navigate(getViewForRole(currentUserRole));
+      } catch (e) {
+        showToast(e.message || "Registration failed.");
+      }
+    }
+
+    async function submitLogin() {
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      if (!email || !password) {
+        return showToast("Please enter both email and password.");
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Login failed");
+
+        token = data.access_token;
+        currentUserRole = data.user ? data.user.role : data.role;
+        const userName = data.user ? data.user.name : data.name;
+
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", currentUserRole);
+
+        document.getElementById("authLinks").classList.add("hidden");
+        document.getElementById("userProfile").classList.remove("hidden");
+        document.getElementById("userProfile").classList.add("flex");
+        document.getElementById("userName").innerText = userName;
+        setRoleBadge(currentUserRole);
+
+        closeAuthModal();
+        showToast(`✅ Welcome back, ${userName}!`);
+        navigate(getViewForRole(currentUserRole));
+      } catch (e) {
+        showToast(e.message || "Invalid email or password.");
+      }
+    }
+
+    async function sendLoginOTP() {
+      const phone = document.getElementById("otpPhone").value.trim();
+      if (!phone) return showToast("Please enter your registered phone number.");
+      try {
+        const res = await fetch(`${API_BASE}/auth/send-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to send OTP.");
+
+        document.getElementById("otpInputGroup").classList.remove("hidden");
+        if (data.otp_preview) {
+          document.getElementById("otpPreviewNotice").innerText = `[DEMO MODE] Mobile OTP Code: ${data.otp_preview}`;
+        }
+        showToast(data.message || "OTP sent to phone!");
+      } catch (e) {
+        showToast(e.message || "Failed to send OTP.");
+      }
+    }
+
+    async function verifyLoginOTP() {
+      const phone = document.getElementById("otpPhone").value.trim();
+      const otp_code = document.getElementById("otpCode").value.trim();
+      if (!phone || !otp_code) return showToast("Please enter phone and 6-digit OTP code.");
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, otp_code })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "OTP verification failed.");
+
+        token = data.access_token;
+        currentUserRole = data.user.role;
+        const userName = data.user.name;
+
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", currentUserRole);
+
+        document.getElementById("authLinks").classList.add("hidden");
+        document.getElementById("userProfile").classList.remove("hidden");
+        document.getElementById("userProfile").classList.add("flex");
+        document.getElementById("userName").innerText = userName;
+        setRoleBadge(currentUserRole);
+
+        closeAuthModal();
+        showToast(`✅ Welcome back, ${userName}! Logged in via OTP.`);
+        navigate(getViewForRole(currentUserRole));
+      } catch (e) {
+        showToast(e.message || "Invalid OTP code.");
+      }
+    }
+
+    // --- Mandi Rates ---
+    async function fetchMandiRates() {
+      try {
+        const res = await fetch(`${API_BASE}/market-prices`);
+        const data = await res.json();
+        const container = document.getElementById("mandiRatesList");
+        container.innerHTML = data.map(m => `
+          <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 card-hover">
+            <span class="text-xs text-slate-500 font-medium">${m.crop}</span>
+            <div class="text-lg font-bold text-slate-800">₹${m.price}/kg</div>
+            <div class="text-[11px] text-emerald-600 font-medium">${m.market.split(" ")[0]} (${m.updated})</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.warn("Mandi API unavailable.");
+      }
+    }
+
+    // --- Crop AI ---
+    async function runCropAI() {
+      const fileInput = document.getElementById("cropImageInput");
+      const card = document.getElementById("aiAnalysisCard");
+
+      if (!fileInput.files.length) {
+        return showToast("Please select an image file first.");
+      }
+
+      card.innerHTML = `<div class="text-center py-6"><span class="text-sm font-semibold text-emerald-700 animate-pulse">Running OpenCV HSV Pixel Profiling & Defect Contours...</span></div>`;
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        const res = await fetch(`${API_BASE}/ai/analyze-crop`, { method: "POST", body: formData });
+        const data = await res.json();
+
+        card.innerHTML = `
+          <div class="space-y-3 bg-white p-4 rounded-xl border border-emerald-200">
+            <div class="flex justify-between items-center">
+              <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded">Crop: ${data.detection.crop}</span>
+              <span class="text-xs text-slate-500 font-medium">Resolution: ${data.detection.image_resolution}</span>
+            </div>
+            <div class="text-sm">Detected Quality: <span class="font-bold text-slate-800">${data.detection.quality}</span></div>
+            <div class="text-sm">Defect Ratio: <span class="font-bold text-red-600">${data.detection.defect_percentage}%</span></div>
+            <div class="text-sm text-emerald-700 font-bold">Suggested Price: ₹${data.prediction.recommended_price}/kg</div>
+            <p class="text-xs text-slate-500 italic leading-snug">${data.prediction.reason}</p>
+          </div>
+        `;
+
+        document.getElementById("listCropName").value = data.detection.crop;
+        document.getElementById("listPrice").value = data.prediction.recommended_price;
+      } catch (e) {
+        card.innerHTML = `<p class="text-xs text-red-500">Error processing image.</p>`;
+      }
+    }
+
+    // --- Auto-Detect Crop on Farmer Image Upload ---
+    async function handleListingImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById("listingPreviewImg").src = e.target.result;
+        document.getElementById("listingImagePreview").classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+
+      // Step 1: Upload image to server
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      try {
+        const uploadRes = await fetch(`${API_BASE}/uploads/crop-image`, {
+          method: "POST",
+          headers: csrfHeaders(),
+          body: uploadFormData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok) {
+          uploadedImageUrl = uploadData.image_url;
+        }
+      } catch (e) {
+        console.warn("Image upload failed:", e);
+      }
+
+      // Step 2: Auto-detect crop
+      const detectFormData = new FormData();
+      detectFormData.append("file", file);
+      try {
+        const detectRes = await fetch(`${API_BASE}/ai/auto-detect-crop`, {
+          method: "POST",
+          headers: csrfHeaders(),
+          body: detectFormData
+        });
+        const data = await detectRes.json();
+        if (detectRes.ok) {
+          // Pre-fill form fields
+          document.getElementById("listCropName").value = data.detected_crop;
+          document.getElementById("listPrice").value = data.suggested_price_per_kg;
+          document.getElementById("listQuality").value = data.quality_grade;
+
+          // Show detection status
+          document.getElementById("adCrop").innerText = data.detected_crop;
+          document.getElementById("adQuality").innerText = data.quality_grade;
+          document.getElementById("adMandiPrice").innerText = `₹${data.live_mandi_price}/kg`;
+          document.getElementById("adSuggested").innerText = `₹${data.suggested_price_per_kg}/kg`;
+          document.getElementById("autoDetectStatus").classList.remove("hidden");
+
+          showToast(`AI Detected: ${data.detected_crop} (${data.quality_grade}) — ₹${data.suggested_price_per_kg}/kg`);
+        }
+      } catch (e) {
+        console.warn("Auto-detect failed:", e);
+      }
+    }
+
+    // --- Seller Listing ---
+    async function publishListing() {
+      if (!token) return showToast("Please authenticate first.");
+      const payload = {
+        crop_name: document.getElementById("listCropName").value,
+        quantity: parseFloat(document.getElementById("listQuantity").value),
+        price_per_kg: parseFloat(document.getElementById("listPrice").value),
+        quality: document.getElementById("listQuality").value,
+        image_url: uploadedImageUrl || null
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/seller/listings`, {
+          method: "POST",
+          headers: csrfHeaders({ "Content-Type": "application/json", "Authorization": `Bearer ${token}` }),
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error("Publish failed.");
+        showToast("Crop listing published to marketplace!");
+        uploadedImageUrl = null;
+        document.getElementById("autoDetectStatus").classList.add("hidden");
+        document.getElementById("listingImagePreview").classList.add("hidden");
+      } catch (e) {
+        showToast("Error creating listing.");
+      }
+    }
+
+    // --- Marketplace ---
+    async function loadMarketplace() {
+      const grid = document.getElementById("marketListingsGrid");
+      const search = document.getElementById("searchInput").value;
+      const maxPrice = document.getElementById("maxPriceInput").value;
+
+      let url = `${API_BASE}/marketplace?`;
+      if (search) url += `search=${encodeURIComponent(search)}&`;
+      if (maxPrice) url += `max_price=${encodeURIComponent(maxPrice)}&`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.length) {
+          grid.innerHTML = `<p class="text-sm text-slate-400 col-span-3 py-6 text-center">No active crop produce listed matching criteria.</p>`;
+          return;
+        }
+
+        grid.innerHTML = data.map(item => `
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between card-hover">
+            <img src="${item.image}" class="h-44 w-full object-cover" alt="${item.crop}" />
+            <div class="p-5 space-y-3">
+              <div class="flex justify-between items-start">
+                <div>
+                  <h4 class="font-bold text-lg text-slate-800">${item.crop}</h4>
+                  <p class="text-xs text-slate-500">Farmer: ${item.seller_name} (${item.seller_location})</p>
+                </div>
+                <div class="text-right">
+                  <span class="text-xl font-extrabold text-emerald-600">₹${item.price}</span><span class="text-xs text-slate-500">/kg</span>
+                </div>
+              </div>
+              <div class="flex justify-between text-xs text-slate-600 border-t pt-2">
+                <span>Available: <b>${item.quantity} kg</b></span>
+                <span class="px-2 py-0.5 bg-slate-100 rounded">Grade: ${item.quality}</span>
+              </div>
+              <div class="flex gap-2">
+                <button onclick='addToCart(${JSON.stringify(item).replace(/'/g, "&apos;")})' class="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">🛒 Add to Cart</button>
+                <button onclick="openCheckout(${item.id})" class="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition">Buy Now</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        grid.innerHTML = `<p class="text-sm text-slate-400">Failed to load marketplace entries.</p>`;
+      }
+    }
+
+    // --- Checkout ---
+    async function openCheckout(listingId) {
+      if (!token) return showToast("Log in as a buyer to purchase produce.");
+      selectedListing = listingId;
+
+      try {
+        const res = await fetch(`${API_BASE}/orders/quote-and-route?listing_id=${listingId}`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        activeQuote = await res.json();
+
+        document.getElementById("orderQty").value = 100;
+        document.getElementById("routeDetails").innerHTML = `
+          <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-lg">
+            <div class="font-semibold text-emerald-900">Farm-to-Hub Optimized Route</div>
+            <div>Distance: <b>${activeQuote.route.distance_km} km</b> (~${activeQuote.route.estimated_minutes} mins)</div>
+            <div class="text-xs text-slate-500 mt-1">Waypoints: ${activeQuote.route.route_steps.join(" → ")}</div>
+          </div>
+        `;
+        recalculateOrderSummary();
+        document.getElementById("checkoutModal").classList.remove("hidden");
+      } catch (e) {
+        showToast("Error getting route optimization");
+      }
+    }
+
+    function recalculateOrderSummary() {
+      if (!activeQuote) return;
+      const qty = parseFloat(document.getElementById("orderQty").value) || 0;
+      const subtotal = qty * activeQuote.price_per_kg;
+      const logistics = activeQuote.route.logistics_cost;
+      const total = subtotal + logistics;
+
+      document.getElementById("summarySubtotal").innerText = `₹${subtotal.toFixed(2)}`;
+      document.getElementById("summaryLogistics").innerText = `₹${logistics.toFixed(2)}`;
+      document.getElementById("summaryTotal").innerText = `₹${total.toFixed(2)}`;
+    }
+
+    function closeCheckout() { document.getElementById("checkoutModal").classList.add("hidden"); }
+
+    async function confirmOrder() {
+      const payload = {
+        listing_id: selectedListing,
+        quantity: parseFloat(document.getElementById("orderQty").value),
+        delivery_address: document.getElementById("orderAddress").value
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/orders/place`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        let msg = `Order #${data.order_id} placed!`;
+        if (data.delivery_assignment) {
+          msg += ` 🚚 Delivery partner ${data.delivery_assignment.partner_name} assigned. OTP: ${data.delivery_assignment.otp_code}`;
+        }
+        showToast(msg);
+        closeCheckout();
+        loadMarketplace();
+      } catch (e) {
+        showToast(e.message || "Error placing order.");
+      }
+    }
+
+    // --- Orders Modal (Enhanced with delivery tracking) ---
+    async function showOrdersModal() {
+      if (!token) return showToast("Please log in first.");
+      document.getElementById("ordersModal").classList.remove("hidden");
+
+      try {
+        const res = await fetch(`${API_BASE}/orders/my-orders`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const orders = await res.json();
+        const container = document.getElementById("ordersList");
+
+        if (!orders.length) {
+          container.innerHTML = `<p class="text-sm text-slate-400 text-center py-4">No order history found.</p>`;
+          return;
+        }
+
+        container.innerHTML = orders.map(o => {
+          const statusColor = {
+            "Confirmed": "bg-blue-100 text-blue-800",
+            "Picked Up": "bg-yellow-100 text-yellow-800",
+            "In Transit": "bg-orange-100 text-orange-800",
+            "Delivered": "bg-emerald-100 text-emerald-800"
+          }[o.status] || "bg-slate-100 text-slate-600";
+
+          let deliveryHTML = '';
+          if (o.delivery_info) {
+            const d = o.delivery_info;
+            const vehicleIcons = { Bike: "🏍️", Van: "🚐", Truck: "🚛", Tempo: "🛻" };
+            const vehicleIcon = vehicleIcons[d.vehicle_type] || "🚚";
+
+            // Status tracker steps
+            const steps = ["Assigned", "Picked Up", "In Transit", "Delivered"];
+            const currentIdx = steps.indexOf(d.delivery_status);
+
+            deliveryHTML = `
+              <div class="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-orange-800">${vehicleIcon} Delivery Partner: ${d.partner_name} (${d.vehicle_type})</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusColor}">${d.delivery_status}</span>
+                </div>
+                <div class="flex gap-1">
+                  ${steps.map((s, i) => `
+                    <div class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold border status-step ${i < currentIdx ? 'completed' : i === currentIdx ? 'active' : 'bg-slate-100 text-slate-400 border-slate-200'}">
+                      ${s}
+                    </div>
+                  `).join('')}
+                </div>
+                ${d.otp_code && d.delivery_status !== 'Delivered' ? `
+                  <div class="bg-white border border-orange-300 rounded-lg p-3 text-center">
+                    <p class="text-[10px] text-slate-500 font-semibold mb-1">DELIVERY VERIFICATION OTP</p>
+                    <div class="otp-box text-orange-600">${d.otp_code}</div>
+                    <p class="text-[10px] text-slate-400 mt-1">Share this OTP with delivery partner on arrival</p>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          } else {
+            deliveryHTML = `
+              <div class="mt-2 text-xs text-slate-400 italic flex items-center gap-1">
+                ⏳ Awaiting delivery partner assignment...
+              </div>
+            `;
+          }
+
+          return `
+            <div class="border border-slate-200 p-4 rounded-xl bg-slate-50 space-y-2 fade-in">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-slate-800">Order #${o.id} — ${o.crop}</span>
+                <span class="text-xs px-2.5 py-1 rounded-full font-semibold ${statusColor}">${o.status}</span>
+              </div>
+              <div class="text-xs text-slate-600 flex justify-between">
+                <span>Quantity: <b>${o.quantity} kg</b> | Total: <b>₹${o.total_amount.toFixed(2)}</b></span>
+                <span>${o.created_at}</span>
+              </div>
+              <div class="text-xs text-slate-500">Address: ${o.delivery_address}</div>
+              ${deliveryHTML}
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        showToast("Error loading order status.");
+      }
+    }
+
+    function closeOrdersModal() { document.getElementById("ordersModal").classList.add("hidden"); }
+
+    // =============================================
+    // DELIVERY PARTNER DASHBOARD FUNCTIONS
+    // =============================================
+
+    async function loadDeliveryDashboard() {
+      await loadDeliveryProfile();
+      await loadDeliveryAssignments();
+    }
+
+    async function loadDeliveryProfile() {
+      try {
+        const res = await fetch(`${API_BASE}/delivery/my-profile`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const profile = await res.json();
+
+        const vehicleIcons = { Bike: "🏍️", Van: "🚐", Truck: "🚛", Tempo: "🛻" };
+
+        document.getElementById("deliveryProfileStats").innerHTML = `
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center card-hover">
+            <div class="text-2xl font-extrabold text-slate-800">${profile.total_deliveries}</div>
+            <div class="text-xs text-slate-500 font-medium mt-1">Total Deliveries</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center card-hover">
+            <div class="text-2xl font-extrabold text-yellow-500">⭐ ${profile.rating}</div>
+            <div class="text-xs text-slate-500 font-medium mt-1">Rating</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center card-hover">
+            <div class="text-2xl">${vehicleIcons[profile.vehicle_type] || "🚚"}</div>
+            <div class="text-xs text-slate-500 font-medium mt-1">${profile.vehicle_type} — ${profile.license_number}</div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-4 text-center card-hover">
+            <div class="text-2xl">${profile.is_available ? '🟢' : '🔴'}</div>
+            <div class="text-xs text-slate-500 font-medium mt-1">${profile.is_available ? 'Online' : 'Offline'}</div>
+          </div>
+        `;
+
+        // Update availability toggle button
+        const btn = document.getElementById("availabilityToggle");
+        if (profile.is_available) {
+          btn.className = "px-4 py-2 text-xs font-semibold rounded-xl border transition bg-red-50 text-red-700 border-red-200 hover:bg-red-100";
+          btn.innerText = "🔴 Go Offline";
+        } else {
+          btn.className = "px-4 py-2 text-xs font-semibold rounded-xl border transition bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100";
+          btn.innerText = "🟢 Go Online";
+        }
+      } catch (e) {
+        console.warn("Could not load delivery profile.");
+      }
+    }
+
+    async function loadDeliveryAssignments() {
+      try {
+        const res = await fetch(`${API_BASE}/delivery/my-assignments`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const assignments = await res.json();
+
+        const active = assignments.filter(a => a.status !== "Delivered");
+        const completed = assignments.filter(a => a.status === "Delivered");
+
+        const activeContainer = document.getElementById("activeAssignmentsList");
+        const completedContainer = document.getElementById("completedAssignmentsList");
+
+        if (!active.length) {
+          activeContainer.innerHTML = `
+            <div class="text-center py-8 space-y-2">
+              <div class="text-4xl">📭</div>
+              <p class="text-sm text-slate-400">No active deliveries. Stay online to receive new assignments!</p>
+            </div>
+          `;
+        } else {
+          activeContainer.innerHTML = active.map(a => renderAssignmentCard(a, true)).join('');
+        }
+
+        if (!completed.length) {
+          completedContainer.innerHTML = `<p class="text-sm text-slate-400 text-center py-4">No completed deliveries yet.</p>`;
+        } else {
+          completedContainer.innerHTML = completed.map(a => renderAssignmentCard(a, false)).join('');
+        }
+      } catch (e) {
+        console.warn("Could not load assignments.");
+      }
+    }
+
+    function renderAssignmentCard(a, showActions) {
+      const statusColors = {
+        "Assigned": "bg-blue-100 text-blue-800 border-blue-200",
+        "Picked Up": "bg-yellow-100 text-yellow-800 border-yellow-200",
+        "In Transit": "bg-orange-100 text-orange-800 border-orange-200",
+        "Delivered": "bg-emerald-100 text-emerald-800 border-emerald-200"
+      };
+      const statusClass = statusColors[a.status] || "bg-slate-100 text-slate-600";
+
+      const steps = ["Assigned", "Picked Up", "In Transit", "Delivered"];
+      const currentIdx = steps.indexOf(a.status);
+
+      let actionBtn = '';
+      if (showActions) {
+        const nextStatus = steps[currentIdx + 1];
+        if (nextStatus) {
+          const btnColors = {
+            "Picked Up": "bg-yellow-500 hover:bg-yellow-600",
+            "In Transit": "bg-orange-500 hover:bg-orange-600",
+            "Delivered": "bg-emerald-600 hover:bg-emerald-700"
+          };
+          actionBtn = `
+            <button onclick="updateDeliveryStatus(${a.assignment_id}, '${nextStatus}')"
+              class="w-full py-2.5 ${btnColors[nextStatus] || 'bg-slate-800'} text-white rounded-lg text-xs font-bold transition mt-2">
+              ${nextStatus === 'Picked Up' ? '📦 Mark as Picked Up' : nextStatus === 'In Transit' ? '🚚 Start Transit' : '✅ Mark as Delivered'}
+            </button>
+          `;
+        }
+      }
+
+      return `
+        <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-3 fade-in card-hover">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="font-bold text-slate-800">Order #${a.order_id} — ${a.crop}</span>
+              <div class="text-xs text-slate-500 mt-0.5">${a.quantity} kg · ₹${a.total_amount.toFixed(2)}</div>
+            </div>
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-bold border ${statusClass}">${a.status}</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-emerald-50 rounded-lg p-2 border border-emerald-100">
+              <div class="font-semibold text-emerald-800">📍 Pickup</div>
+              <div class="text-slate-600">${a.seller_name}</div>
+              <div class="text-slate-500">${a.pickup_address}</div>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-2 border border-blue-100">
+              <div class="font-semibold text-blue-800">🏠 Delivery</div>
+              <div class="text-slate-600">${a.buyer_name}</div>
+              <div class="text-slate-500">${a.delivery_address}</div>
+            </div>
+          </div>
+
+          <div class="flex gap-1">
+            ${steps.map((s, i) => `
+              <div class="flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold border status-step ${i < currentIdx ? 'completed' : i === currentIdx ? 'active' : 'bg-slate-100 text-slate-400 border-slate-200'}">
+                ${s}
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="bg-slate-50 border rounded-lg p-2 text-center">
+            <span class="text-[10px] text-slate-500 font-medium">OTP Verification Code:</span>
+            <span class="font-extrabold text-lg text-orange-600 ml-2 tracking-widest">${a.otp_code}</span>
+          </div>
+
+          ${actionBtn}
+          <div class="text-[10px] text-slate-400 text-right">${a.created_at}</div>
+        </div>
+      `;
+    }
+
+    async function updateDeliveryStatus(assignmentId, newStatus) {
+      try {
+        const res = await fetch(`${API_BASE}/delivery/update-status/${assignmentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        showToast(`✅ ${data.message}`);
+        loadDeliveryDashboard();
+      } catch (e) {
+        showToast(e.message || "Error updating delivery status.");
+      }
+    }
+
+    async function toggleAvailability() {
+      try {
+        const res = await fetch(`${API_BASE}/delivery/toggle-availability`, {
+          method: "PUT",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        showToast(data.message);
+        loadDeliveryProfile();
+      } catch (e) {
+        showToast(e.message || "Error toggling availability.");
+      }
+    }
+
+    // =============================================
+    // AI CROP RECOGNITION & QUALITY GRADING LOGIC
+    // =============================================
+    let activeGraderFile = null;
+    let lastGraderResult = null;
+
+    const CROP_ICONS = {
+      "Tomato": "🍅",
+      "Potato": "🥔",
+      "Garlic": "🧄",
+      "Onion": "🧅",
+      "Carrot": "🥕"
+    };
+
+    function initGrader() {
+      const dropzone = document.getElementById("graderDropzone");
+      if (!dropzone) return;
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add("dragover-glow");
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove("dragover-glow");
+        }, false);
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          const file = dt.files[0];
+          setGraderFile(file);
+        }
+      }, false);
+    }
+
+    function handleGraderFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        setGraderFile(file);
+      }
+    }
+
+    function setGraderFile(file) {
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp)$/i)) {
+        showToast("Please select a valid image file (JPG, PNG, WEBP).");
+        return;
+      }
+
+      activeGraderFile = file;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById("graderPreviewImg").src = e.target.result;
+        document.getElementById("graderFileName").innerText = file.name;
+        document.getElementById("graderFileSize").innerText = `${(file.size / 1024).toFixed(1)} KB`;
+        document.getElementById("graderPreviewCard").classList.remove("hidden");
+        document.getElementById("graderDropzone").classList.add("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearGraderImage() {
+      activeGraderFile = null;
+      lastGraderResult = null;
+      const fileInput = document.getElementById("graderFileInput");
+      if (fileInput) fileInput.value = "";
+      document.getElementById("graderPreviewImg").src = "";
+      document.getElementById("graderPreviewCard").classList.add("hidden");
+      document.getElementById("graderDropzone").classList.remove("hidden");
+      document.getElementById("graderPlaceholder").classList.remove("hidden");
+      document.getElementById("graderOutputContent").classList.add("hidden");
+    }
+
+    async function runCropGrading() {
+      if (!activeGraderFile) {
+        return showToast("Please select or drop a crop image first.");
+      }
+
+      const btn = document.getElementById("graderSubmitBtn");
+      const spinner = document.getElementById("graderBtnSpinner");
+      const btnText = document.getElementById("graderBtnText");
+
+      btn.disabled = true;
+      spinner.classList.remove("hidden");
+      btnText.innerText = "Analyzing Contours & Classifying...";
+
+      const formData = new FormData();
+      formData.append("file", activeGraderFile);
+
+      try {
+        const res = await fetch(`${API_BASE}/grade-crop`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Analysis failed");
+
+        renderGraderResult(data);
+        showToast(`✅ Graded: ${data.vegetable} (${data.quality} Quality)`);
+      } catch (err) {
+        showToast(`Grading error: ${err.message || "Failed to process image"}`);
+      } finally {
+        btn.disabled = false;
+        spinner.classList.add("hidden");
+        btnText.innerText = "⚡ Grade Crop & Measure Surface Area";
+      }
+    }
+
+    function renderGraderResult(data) {
+      lastGraderResult = data;
+      const placeholder = document.getElementById("graderPlaceholder");
+      const output = document.getElementById("graderOutputContent");
+
+      placeholder.classList.add("hidden");
+      output.classList.remove("hidden");
+
+      // Vegetable & Icon
+      const cropName = data.vegetable || "Potato";
+      document.getElementById("resultCropName").innerText = cropName;
+      document.getElementById("resultCropIcon").innerText = CROP_ICONS[cropName] || "🥬";
+
+      // Quality Badge
+      const quality = data.quality || "Medium";
+      const badge = document.getElementById("resultQualityBadge");
+      const badgeStyles = {
+        "Good": "badge-good ring-2 ring-emerald-500/20",
+        "Medium": "badge-medium ring-2 ring-blue-500/20",
+        "Average": "badge-average ring-2 ring-amber-500/20"
+      };
+      const badgeIcons = {
+        "Good": "🟢",
+        "Medium": "🔵",
+        "Average": "🟡"
+      };
+      badge.className = `px-3.5 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-sm ${badgeStyles[quality] || badgeStyles["Medium"]}`;
+      badge.innerHTML = `<span>${badgeIcons[quality] || '⭐'}</span> <span>${quality} Quality Tier</span>`;
+
+      // Surface Area
+      const area = typeof data.area_px === "number" ? data.area_px : parseInt(data.area_px) || 0;
+      document.getElementById("resultSurfaceArea").innerText = `${area.toLocaleString()} px²`;
+      document.getElementById("resultTierLabel").innerText = `Tier: ${quality} Grade`;
+
+      // Confidence
+      const confPct = Math.round((data.confidence || 0.90) * 100);
+      document.getElementById("resultConfidenceText").innerText = `${confPct}%`;
+      document.getElementById("resultConfidenceBar").style.width = `${confPct}%`;
+
+      // Raw JSON Payload
+      document.getElementById("resultJsonPayload").innerText = JSON.stringify(data, null, 2);
+    }
+
+    function copyGraderJSON() {
+      if (!lastGraderResult) return;
+      navigator.clipboard.writeText(JSON.stringify(lastGraderResult, null, 2))
+        .then(() => showToast("Copied JSON response to clipboard!"))
+        .catch(() => showToast("Could not copy JSON"));
+    }
+
+    function applyToSellerListing() {
+      if (!lastGraderResult) return;
+      if (document.getElementById("listCropName")) {
+        document.getElementById("listCropName").value = lastGraderResult.vegetable;
+      }
+      navigate("seller");
+      showToast(`Selected ${lastGraderResult.vegetable} (${lastGraderResult.quality}) in listing form.`);
+    }
+
+    function loadSampleCrop(vegetable, targetArea) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 600;
+      canvas.height = 600;
+      const ctx = canvas.getContext("2d");
+
+      // Background
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(0, 0, 600, 600);
+
+      // Vegetable color & shape
+      const colors = {
+        "Tomato": "#dc2626",
+        "Potato": "#ca8a04",
+        "Garlic": "#e2e8f0",
+        "Onion": "#9333ea",
+        "Carrot": "#ea580c"
+      };
+      ctx.fillStyle = colors[vegetable] || "#ca8a04";
+
+      const r = Math.sqrt(targetArea / Math.PI);
+      ctx.beginPath();
+      if (vegetable === "Carrot") {
+        ctx.ellipse(300, 300, r * 0.6, r * 1.6, Math.PI / 6, 0, 2 * Math.PI);
+      } else {
+        ctx.ellipse(300, 300, r * 1.1, r * 0.9, Math.PI / 12, 0, 2 * Math.PI);
+      }
+      ctx.fill();
+
+      canvas.toBlob((blob) => {
+        const file = new File([blob], `sample_${vegetable.toLowerCase()}.jpg`, { type: "image/jpeg" });
+        setGraderFile(file);
+        runCropGrading();
+      }, "image/jpeg");
+    }
+
+    // --- Cart Functions ---
+    function addToCart(item) {
+      if (!token || currentUserRole !== 'buyer') return showToast('Log in as a buyer to use the cart.');
+      CartManager.addItem({
+        id: item.id,
+        crop: item.crop,
+        price: item.price,
+        seller_name: item.seller_name,
+        seller_location: item.seller_location,
+        image: item.image,
+        quality: item.quality,
+        max_quantity: item.quantity,
+        quantity: 50
+      });
+      showToast(`🛒 ${item.crop} added to cart!`);
+    }
+
+    function openCartModal() {
+      renderCartItems();
+      document.getElementById('cartModal').classList.remove('hidden');
+    }
+    function closeCartModal() { document.getElementById('cartModal').classList.add('hidden'); }
+
+    function renderCartItems() {
+      const items = CartManager.getItems();
+      const container = document.getElementById('cartItemsList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">Your cart is empty. Browse the marketplace to add items.</p>';
+        document.getElementById('cartSubtotal').innerText = '₹0';
+        document.getElementById('cartTotal').innerText = '₹0';
+        return;
+      }
+      container.innerHTML = items.map(item => `
+        <div class="flex items-center gap-4 border border-slate-200 rounded-xl p-3 bg-slate-50">
+          <img src="${item.image}" class="w-16 h-16 rounded-xl object-cover border" alt="${item.crop}" />
+          <div class="flex-1 space-y-1">
+            <div class="font-bold text-slate-800 text-sm">${item.crop}</div>
+            <div class="text-xs text-slate-500">${item.seller_name} · ₹${item.price}/kg · ${item.quality}</div>
+            <div class="flex items-center gap-2">
+              <input type="number" value="${item.quantity}" min="1" max="${item.max_quantity}"
+                onchange="updateCartQty(${item.id}, this.value)"
+                class="w-20 px-2 py-1 border rounded-lg text-xs" />
+              <span class="text-xs text-slate-400">kg</span>
+            </div>
+          </div>
+          <div class="text-right space-y-1">
+            <div class="font-bold text-emerald-700">₹${(item.price * item.quantity).toFixed(2)}</div>
+            <button onclick="removeFromCart(${item.id})" class="text-xs text-red-500 hover:text-red-700 font-medium">Remove</button>
+          </div>
+        </div>
+      `).join('');
+
+      const subtotal = CartManager.total();
+      document.getElementById('cartSubtotal').innerText = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('cartTotal').innerText = `₹${(subtotal + 150).toFixed(2)}`;
+    }
+
+    function updateCartQty(listingId, qty) {
+      CartManager.updateQuantity(listingId, parseFloat(qty) || 1);
+      renderCartItems();
+    }
+
+    function removeFromCart(listingId) {
+      CartManager.removeItem(listingId);
+      renderCartItems();
+      showToast('Item removed from cart.');
+    }
+
+    function clearCart() {
+      CartManager.clear();
+      renderCartItems();
+      showToast('Cart cleared.');
+    }
+
+    async function checkoutCart() {
+      const items = CartManager.getItems();
+      if (!items.length) return showToast('Cart is empty.');
+      if (!token) return showToast('Please log in first.');
+
+      const payload = {
+        items: items.map(i => ({ listing_id: i.id, quantity: i.quantity })),
+        delivery_address: document.getElementById('cartDeliveryAddress').value
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/orders/place-cart`, {
+          method: 'POST',
+          headers: csrfHeaders({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        showToast(data.message);
+        CartManager.clear();
+        closeCartModal();
+        loadMarketplace();
+      } catch (e) {
+        showToast(e.message || 'Checkout failed.');
+      }
+    }
+
+    // --- Init ---
+    fetchMandiRates();
+    initGrader();
+    CartManager.updateBadge();
+  </script>
+</body>
+</html>

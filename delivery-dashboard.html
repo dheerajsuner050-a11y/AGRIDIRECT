@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriDirect AI — Delivery Partner Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+    .card-hover { transition: all 0.25s ease; }
+    .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 28px -8px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    #deliveryMap { height: 340px; border-radius: 1rem; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='/'">
+        <div class="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-orange-200">
+          🚚
+        </div>
+        <div>
+          <span class="text-lg font-bold text-slate-800">AgriDirect <span class="text-orange-600">Logistics</span></span>
+          <span class="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-bold uppercase ml-2">Partner Portal</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Online/Offline Toggle -->
+        <button id="onlineToggleBtn" onclick="toggleOnlineStatus()"
+                class="px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100">
+          <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
+          <span id="statusText">Online</span>
+        </button>
+
+        <!-- Driver Profile Menu -->
+        <div class="flex items-center gap-2 border-l pl-3 border-slate-200">
+          <span id="driverName" class="text-xs font-bold text-slate-700 hidden sm:inline">Suresh Yadav</span>
+          <span id="driverKycBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">KYC Verified</span>
+          <button onclick="logoutPartner()" class="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded-lg border border-red-100 hover:bg-red-100 font-medium transition">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Banner -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-xs font-semibold border border-slate-700 flex items-center gap-2"></div>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+    <!-- Overview Stat Cards -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover space-y-1">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today's Earnings</span>
+        <div id="statTodayEarnings" class="text-2xl font-extrabold text-emerald-600">₹0.00</div>
+        <span class="text-[11px] text-slate-400">Credited automatically</span>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover space-y-1">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">This Week</span>
+        <div id="statWeekEarnings" class="text-2xl font-extrabold text-slate-800">₹0.00</div>
+        <span class="text-[11px] text-emerald-600 font-medium">Weekly payout cycle</span>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover space-y-1">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Completed Trips</span>
+        <div id="statTotalTrips" class="text-2xl font-extrabold text-slate-800">0</div>
+        <span class="text-[11px] text-slate-400">Total lifetime orders</span>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm card-hover space-y-1">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Driver Rating</span>
+        <div id="statRating" class="text-2xl font-extrabold text-yellow-500 flex items-center gap-1">⭐ 5.0</div>
+        <span class="text-[11px] text-slate-400">Top-tier verified partner</span>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-slate-200 gap-6 text-sm font-semibold">
+      <button onclick="switchTab('active')" id="tabBtnActive" class="pb-3 text-orange-600 border-b-2 border-orange-500 flex items-center gap-2">
+        <span>📍</span> Active Trip
+      </button>
+      <button onclick="switchTab('available')" id="tabBtnAvailable" class="pb-3 text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+        <span>🔔</span> Dispatch Pool <span id="poolCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">0</span>
+      </button>
+      <button onclick="switchTab('earnings')" id="tabBtnEarnings" class="pb-3 text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+        <span>💰</span> Earnings Log
+      </button>
+      <button onclick="switchTab('kyc')" id="tabBtnKyc" class="pb-3 text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+        <span>📋</span> KYC & Profile
+      </button>
+    </div>
+
+    <!-- TAB 1: ACTIVE TRIP WORKSPACE -->
+    <section id="tabActive" class="space-y-6 fade-in">
+      <!-- No Active Order State -->
+      <div id="noActiveOrderCard" class="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3 shadow-sm">
+        <div class="text-5xl">🛣️</div>
+        <h3 class="text-lg font-bold text-slate-800">No Ongoing Delivery Right Now</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto">
+          Keep your status <b>Online</b> to receive automatic delivery dispatches from nearby farm gates and buyers.
+        </p>
+        <button onclick="switchTab('available')" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition shadow-md shadow-orange-200">
+          Check Dispatch Pool
+        </button>
+      </div>
+
+      <!-- Active Order Trip Center -->
+      <div id="activeOrderCard" class="hidden grid lg:grid-cols-12 gap-6">
+        <!-- Left: Live Map & GPS Controls -->
+        <div class="lg:col-span-7 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
+              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Live Route & Vehicle GPS</span>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="simulateDemoGPS()" class="px-2.5 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold border transition">
+                🎮 Start Demo Simulation
+              </button>
+            </div>
+          </div>
+
+          <!-- Leaflet Map Container -->
+          <div id="deliveryMap"></div>
+
+          <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-3 rounded-2xl border text-xs">
+            <div><span class="text-slate-400 block text-[10px]">Distance</span><b id="activeDistanceText">-- km</b></div>
+            <div><span class="text-slate-400 block text-[10px]">Est. ETA</span><b id="activeEtaText">-- mins</b></div>
+            <div><span class="text-slate-400 block text-[10px]">Speed</span><b id="activeSpeedText">0 km/h</b></div>
+          </div>
+        </div>
+
+        <!-- Right: Status Progression & Actions -->
+        <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex justify-between items-start border-b pb-3">
+              <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Order</span>
+                <h3 id="activeOrderNumber" class="text-xl font-extrabold text-slate-900">#ORD-0000</h3>
+                <span id="activeCropDetail" class="text-xs font-semibold text-emerald-700">Potato · 300 kg</span>
+              </div>
+              <span id="activeStatusBadge" class="text-[11px] px-3 py-1 rounded-full font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                ACCEPTED
+              </span>
+            </div>
+
+            <!-- Route Waypoints -->
+            <div class="space-y-3 text-xs">
+              <div class="flex gap-3 items-start p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl">
+                <span class="text-lg">📍</span>
+                <div>
+                  <div class="font-bold text-emerald-900">Farm Gate (Pickup)</div>
+                  <div id="activePickupAddress" class="text-slate-600">Loading pickup address...</div>
+                  <div id="activeFarmerContact" class="text-[11px] text-slate-500 mt-0.5">Contact: --</div>
+                </div>
+              </div>
+
+              <div class="flex gap-3 items-start p-3 bg-blue-50/70 border border-blue-100 rounded-xl">
+                <span class="text-lg">🏠</span>
+                <div>
+                  <div class="font-bold text-blue-900">Buyer Destination (Dropoff)</div>
+                  <div id="activeDeliveryAddress" class="text-slate-600">Loading delivery address...</div>
+                  <div id="activeBuyerContact" class="text-[11px] text-slate-500 mt-0.5">Contact: --</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payout Pill -->
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border text-xs font-semibold">
+              <span class="text-slate-600">Driver Delivery Payout:</span>
+              <span id="activePayoutAmount" class="text-base font-extrabold text-emerald-600">₹0.00</span>
+            </div>
+          </div>
+
+          <!-- Progression Control Button -->
+          <div class="space-y-2 pt-3 border-t">
+            <button id="progressionBtn" onclick="handleProgressionAction()"
+                    class="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-orange-200 flex items-center justify-center gap-2">
+              <span id="progressionBtnText">Start Navigation to Farm Gate</span>
+            </button>
+            <p id="progressionSubtext" class="text-[11px] text-slate-400 text-center"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: DISPATCH POOL (AVAILABLE REQUESTS) -->
+    <section id="tabAvailable" class="hidden space-y-4 fade-in">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-base">Incoming Delivery Dispatches</h3>
+        <button onclick="loadAvailableOrders()" class="text-xs text-orange-600 hover:text-orange-700 font-bold">↻ Refresh</button>
+      </div>
+
+      <div id="dispatchPoolList" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <p class="text-xs text-slate-400 col-span-3 text-center py-12">Loading available orders...</p>
+      </div>
+    </section>
+
+    <!-- TAB 3: EARNINGS LOG -->
+    <section id="tabEarnings" class="hidden space-y-6 fade-in">
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-bold text-slate-800 text-base">Completed Trip Payout History</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b text-slate-400 font-bold uppercase tracking-wider">
+                <th class="py-3 px-2">Order</th>
+                <th class="py-3 px-2">Crop</th>
+                <th class="py-3 px-2">Date</th>
+                <th class="py-3 px-2">Base Fee</th>
+                <th class="py-3 px-2">Distance Fee</th>
+                <th class="py-3 px-2">Total Paid</th>
+                <th class="py-3 px-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="earningsTableBody" class="divide-y divide-slate-100 font-medium">
+              <tr><td colspan="7" class="py-6 text-center text-slate-400">Loading earnings records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: KYC & PROFILE -->
+    <section id="tabKyc" class="hidden space-y-6 fade-in">
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 max-w-2xl">
+        <div class="flex justify-between items-center border-b pb-4">
+          <div>
+            <h3 class="font-bold text-slate-800 text-base">Driver KYC Verification</h3>
+            <p class="text-xs text-slate-500">Government identity & vehicle registration details</p>
+          </div>
+          <span id="kycStatusBadgeLarge" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+            VERIFIED
+          </span>
+        </div>
+
+        <form id="kycForm" onsubmit="submitKYC(event)" class="space-y-4 text-xs">
+          <div>
+            <label class="font-bold text-slate-600 block mb-1">Driving License Number</label>
+            <input type="text" id="kycLicense" required class="w-full px-3 py-2.5 border rounded-xl" placeholder="e.g. MP0920200012345" />
+          </div>
+          <div>
+            <label class="font-bold text-slate-600 block mb-1">Aadhar Number (Last 4 digits or VID)</label>
+            <input type="text" id="kycAadhar" class="w-full px-3 py-2.5 border rounded-xl" placeholder="e.g. 5678-XXXX-1234" />
+          </div>
+          <div>
+            <label class="font-bold text-slate-600 block mb-1">Vehicle Registration RC</label>
+            <input type="text" id="kycVehicleRc" required class="w-full px-3 py-2.5 border rounded-xl" placeholder="e.g. MP09AB1234" />
+          </div>
+          <div>
+            <label class="font-bold text-slate-600 block mb-1">Emergency Contact Phone</label>
+            <input type="text" id="kycEmergency" class="w-full px-3 py-2.5 border rounded-xl" placeholder="e.g. 9876543210" />
+          </div>
+          <button type="submit" class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition">
+            Save & Update KYC Documents
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- OTP VERIFICATION MODAL (For Pickup or Delivery) -->
+  <div id="otpModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border fade-in">
+      <div class="text-center space-y-1">
+        <div id="otpModalIcon" class="text-4xl">🔐</div>
+        <h4 id="otpModalTitle" class="font-extrabold text-slate-900 text-lg">Verify Pickup OTP</h4>
+        <p id="otpModalDesc" class="text-xs text-slate-500">Ask the farmer for their 6-digit confirmation code.</p>
+      </div>
+
+      <div>
+        <input type="text" id="otpInputCode" maxlength="6"
+               class="w-full py-3 text-center text-2xl font-mono font-extrabold tracking-widest border-2 border-slate-200 focus:border-orange-500 rounded-2xl outline-none"
+               placeholder="000000" />
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="closeOtpModal()" class="flex-1 py-2.5 border rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+        <button onclick="submitOtpVerification()" class="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-200">Confirm OTP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet & App Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/static/js/map.js"></script>
+  <script src="/static/js/tracking.js"></script>
+
+  <script>
+    let currentPartner = null;
+    let currentActiveOrder = null;
+    let leafletMapInstance = null;
+    let vehicleMarker = null;
+    let routePolylineObj = null;
+    let currentOrderWaypoints = [];
+    let currentOtpAction = null; // "pickup" or "delivery"
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3500);
+    }
+
+    function switchTab(tabName) {
+      ["active", "available", "earnings", "kyc"].forEach(t => {
+        document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.add("hidden");
+        const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        btn.className = "pb-3 text-slate-500 hover:text-slate-800 transition flex items-center gap-2";
+      });
+
+      const activeSection = document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+      activeSection.classList.remove("hidden");
+      const activeBtn = document.getElementById(`tabBtn${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+      activeBtn.className = "pb-3 text-orange-600 border-b-2 border-orange-500 flex items-center gap-2 font-bold";
+
+      if (tabName === "available") loadAvailableOrders();
+      if (tabName === "earnings") loadEarnings();
+      if (tabName === "active" && leafletMapInstance) {
+        setTimeout(() => leafletMapInstance.invalidateSize(), 150);
+      }
+    }
+
+    async function loadDriverProfile() {
+      try {
+        const res = await fetch("/delivery/auth/profile");
+        if (!res.ok) {
+          // If unauthenticated, auto-login with delivery demo
+          await autoLoginDeliveryDemo();
+          return;
+        }
+        currentPartner = await res.json();
+        document.getElementById("driverName").innerText = currentPartner.name;
+        document.getElementById("statRating").innerText = `⭐ ${currentPartner.rating.toFixed(1)}`;
+        document.getElementById("statTotalTrips").innerText = currentPartner.total_deliveries;
+
+        updateAvailabilityUI(currentPartner.is_available);
+        if (currentPartner.kyc) {
+          document.getElementById("kycLicense").value = currentPartner.kyc.driving_license_no || "";
+          document.getElementById("kycAadhar").value = currentPartner.kyc.aadhar_no || "";
+          document.getElementById("kycVehicleRc").value = currentPartner.kyc.vehicle_rc_no || "";
+          document.getElementById("kycEmergency").value = currentPartner.kyc.emergency_contact || "";
+        }
+      } catch (err) {
+        console.warn("Profile load error:", err);
+      }
+    }
+
+    async function autoLoginDeliveryDemo() {
+      try {
+        const res = await fetch("/delivery/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "delivery@agridirect.com", password: "delivery123" })
+        });
+        if (res.ok) {
+          await loadDriverProfile();
+          await refreshActiveOrder();
+          loadAvailableOrders();
+          loadEarnings();
+        }
+      } catch (e) {
+        console.warn("Auto-login failed:", e);
+      }
+    }
+
+    function updateAvailabilityUI(isOnline) {
+      const btn = document.getElementById("onlineToggleBtn");
+      const dot = document.getElementById("statusDot");
+      const text = document.getElementById("statusText");
+
+      if (isOnline) {
+        btn.className = "px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 shadow-sm bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
+        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot";
+        text.innerText = "Online";
+      } else {
+        btn.className = "px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 shadow-sm bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200";
+        dot.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
+        text.innerText = "Offline";
+      }
+    }
+
+    async function toggleOnlineStatus() {
+      try {
+        const res = await fetch("/delivery/partner/toggle-availability", { method: "PUT" });
+        const data = await res.json();
+        if (res.ok) {
+          updateAvailabilityUI(data.is_available);
+          showToast(data.message);
+        }
+      } catch (e) {
+        showToast("Error updating status");
+      }
+    }
+
+    async function refreshActiveOrder() {
+      try {
+        const res = await fetch("/delivery/orders/active");
+        const data = await res.json();
+
+        if (data.active_order) {
+          currentActiveOrder = data.active_order;
+          renderActiveOrderUI(currentActiveOrder);
+        } else {
+          currentActiveOrder = null;
+          document.getElementById("noActiveOrderCard").classList.remove("hidden");
+          document.getElementById("activeOrderCard").classList.add("hidden");
+        }
+      } catch (e) {
+        console.warn("Error checking active order:", e);
+      }
+    }
+
+    function renderActiveOrderUI(order) {
+      document.getElementById("noActiveOrderCard").classList.add("hidden");
+      document.getElementById("activeOrderCard").classList.remove("hidden");
+
+      document.getElementById("activeOrderNumber").innerText = order.order_number;
+      document.getElementById("activeCropDetail").innerText = `${order.crop_name} · ${order.quantity} kg`;
+      document.getElementById("activePayoutAmount").innerText = `₹${order.delivery_fee.toFixed(2)}`;
+      document.getElementById("activePickupAddress").innerText = order.pickup.address;
+      document.getElementById("activeFarmerContact").innerText = `Farmer: ${order.pickup.contact_name} (${order.pickup.contact_phone})`;
+      document.getElementById("activeDeliveryAddress").innerText = order.delivery.address;
+      document.getElementById("activeBuyerContact").innerText = `Buyer: ${order.delivery.contact_name} (${order.delivery.contact_phone})`;
+      document.getElementById("activeStatusBadge").innerText = order.status;
+
+      updateProgressionButton(order.status);
+      initOrUpdateActiveMap(order);
+
+      // Connect device GPS watcher
+      startDeliveryGPSTracking(order.order_id, (loc) => {
+        if (vehicleMarker) {
+          vehicleMarker.setLatLng([loc.latitude, loc.longitude]);
+        }
+        document.getElementById("activeSpeedText").innerText = `${Math.round(loc.speed || 0)} km/h`;
+        document.getElementById("activeDistanceText").innerText = `${loc.distance_km || 0} km`;
+        document.getElementById("activeEtaText").innerText = `${loc.eta_mins || 0} mins`;
+      });
+    }
+
+    function updateProgressionButton(status) {
+      const btnText = document.getElementById("progressionBtnText");
+      const subtext = document.getElementById("progressionSubtext");
+
+      const map = {
+        "ACCEPTED": {
+          text: "🚗 Start Navigation to Farm Gate",
+          sub: "Transitions order to GOING_TO_PICKUP",
+          action: () => updateStatus("GOING_TO_PICKUP")
+        },
+        "GOING_TO_PICKUP": {
+          text: "📍 Arrived at Farm Gate",
+          sub: "Transitions order to ARRIVED_AT_PICKUP",
+          action: () => updateStatus("ARRIVED_AT_PICKUP")
+        },
+        "ARRIVED_AT_PICKUP": {
+          text: "🔐 Verify Farmer Pickup OTP",
+          sub: "Validate 6-digit OTP code to transition to PICKED_UP",
+          action: () => openOtpModal("pickup")
+        },
+        "PICKED_UP": {
+          text: "🚚 Begin Transit to Destination",
+          sub: "Transitions order to OUT_FOR_DELIVERY",
+          action: () => updateStatus("OUT_FOR_DELIVERY")
+        },
+        "OUT_FOR_DELIVERY": {
+          text: "🏠 Arrived at Buyer Destination",
+          sub: "Transitions order to ARRIVED_AT_DESTINATION",
+          action: () => updateStatus("ARRIVED_AT_DESTINATION")
+        },
+        "ARRIVED_AT_DESTINATION": {
+          text: "✅ Complete Delivery with Buyer OTP",
+          sub: "Validate buyer 6-digit OTP to complete order",
+          action: () => openOtpModal("delivery")
+        },
+        "DELIVERED": {
+          text: "🎉 Delivery Completed",
+          sub: "All milestones accomplished",
+          action: () => refreshActiveOrder()
+        }
+      };
+
+      const current = map[status] || map["ACCEPTED"];
+      btnText.innerText = current.text;
+      subtext.innerText = current.sub;
+    }
+
+    function handleProgressionAction() {
+      if (!currentActiveOrder) return;
+      const status = currentActiveOrder.status;
+
+      if (status === "ACCEPTED") updateStatus("GOING_TO_PICKUP");
+      else if (status === "GOING_TO_PICKUP") updateStatus("ARRIVED_AT_PICKUP");
+      else if (status === "ARRIVED_AT_PICKUP") openOtpModal("pickup");
+      else if (status === "PICKED_UP") updateStatus("OUT_FOR_DELIVERY");
+      else if (status === "OUT_FOR_DELIVERY") updateStatus("ARRIVED_AT_DESTINATION");
+      else if (status === "ARRIVED_AT_DESTINATION") openOtpModal("delivery");
+    }
+
+    async function updateStatus(newStatus) {
+      if (!currentActiveOrder) return;
+      try {
+        const res = await fetch(`/delivery/orders/${currentActiveOrder.order_id}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        showToast(data.message);
+        await refreshActiveOrder();
+      } catch (e) {
+        showToast(e.message || "Failed to update status");
+      }
+    }
+
+    async function initOrUpdateActiveMap(order) {
+      const pickupLat = order.pickup.latitude;
+      const pickupLon = order.pickup.longitude;
+      const dropLat = order.delivery.latitude;
+      const dropLon = order.delivery.longitude;
+
+      if (!leafletMapInstance) {
+        leafletMapInstance = initAgriMap("deliveryMap", [pickupLat, pickupLon], 13);
+      }
+
+      // Add pickup marker
+      L.marker([pickupLat, pickupLon], {
+        icon: createCustomMarkerIcon("🌾", "bg-emerald-600 text-white")
+      }).addTo(leafletMapInstance).bindPopup(`<b>Farm Gate</b><br>${order.pickup.address}`);
+
+      // Add destination marker
+      L.marker([dropLat, dropLon], {
+        icon: createCustomMarkerIcon("🏠", "bg-blue-600 text-white")
+      }).addTo(leafletMapInstance).bindPopup(`<b>Destination</b><br>${order.delivery.address}`);
+
+      // Add vehicle marker
+      if (!vehicleMarker) {
+        vehicleMarker = L.marker([pickupLat, pickupLon], {
+          icon: createCustomMarkerIcon("🚚", "bg-orange-500 text-white", true)
+        }).addTo(leafletMapInstance).bindPopup("<b>Current Vehicle Position</b>");
+      }
+
+      // Fetch OSRM Route
+      const routeData = await fetchOSRMRoute(pickupLat, pickupLon, dropLat, dropLon);
+      currentOrderWaypoints = routeData.coordinates;
+      drawRoutePolyline(leafletMapInstance, currentOrderWaypoints);
+
+      document.getElementById("activeDistanceText").innerText = `${routeData.distanceKm} km`;
+      document.getElementById("activeEtaText").innerText = `${routeData.durationMins} mins`;
+    }
+
+    function simulateDemoGPS() {
+      if (!currentActiveOrder || currentOrderWaypoints.length === 0) {
+        return showToast("No active route waypoints to simulate.");
+      }
+
+      showToast("🎮 DEMO Simulation started: streaming coordinates along route...");
+      startDemoRouteSimulation(currentActiveOrder.order_id, currentOrderWaypoints, (pt) => {
+        if (vehicleMarker) {
+          vehicleMarker.setLatLng([pt.latitude, pt.longitude]);
+        }
+      });
+    }
+
+    // --- OTP Modals ---
+    function openOtpModal(type) {
+      currentOtpAction = type;
+      const modal = document.getElementById("otpModal");
+      const title = document.getElementById("otpModalTitle");
+      const desc = document.getElementById("otpModalDesc");
+      document.getElementById("otpInputCode").value = "";
+
+      if (type === "pickup") {
+        title.innerText = "Verify Pickup OTP";
+        desc.innerText = "Ask the farmer for the 6-digit confirmation code generated on their dashboard.";
+      } else {
+        title.innerText = "Verify Delivery OTP";
+        desc.innerText = "Ask the buyer for their 6-digit completion code.";
+      }
+      modal.classList.remove("hidden");
+    }
+
+    function closeOtpModal() {
+      document.getElementById("otpModal").classList.add("hidden");
+    }
+
+    async function submitOtpVerification() {
+      const code = document.getElementById("otpInputCode").value.trim();
+      if (code.length !== 6) return showToast("Please enter a valid 6-digit code.");
+
+      const endpoint = currentOtpAction === "pickup"
+        ? `/delivery/orders/${currentActiveOrder.order_id}/verify-pickup-otp`
+        : `/delivery/orders/${currentActiveOrder.order_id}/verify-delivery-otp`;
+
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ otp_code: code })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        closeOtpModal();
+        showToast(data.message);
+        await refreshActiveOrder();
+        loadEarnings();
+      } catch (e) {
+        showToast(e.message || "OTP verification failed");
+      }
+    }
+
+    // --- Dispatch Pool ---
+    async function loadAvailableOrders() {
+      try {
+        const res = await fetch("/delivery/orders/available");
+        const orders = await res.json();
+        const container = document.getElementById("dispatchPoolList");
+        document.getElementById("poolCountBadge").innerText = orders.length;
+
+        if (!orders.length) {
+          container.innerHTML = `<p class="text-xs text-slate-400 col-span-3 text-center py-12">No pending delivery orders available in your zone.</p>`;
+          return;
+        }
+
+        container.innerHTML = orders.map(o => `
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 card-hover fade-in">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-base font-bold text-slate-800">${o.crop_name}</span>
+                <p class="text-xs text-slate-500">${o.quantity} kg · ~${o.distance_km} km trip</p>
+              </div>
+              <span class="text-sm font-extrabold text-emerald-600">₹${o.delivery_fee.toFixed(2)}</span>
+            </div>
+
+            <div class="space-y-1 text-xs text-slate-600 border-t pt-2">
+              <div>📍 <b>Pickup:</b> ${o.pickup_address}</div>
+              <div>🏠 <b>Delivery:</b> ${o.delivery_address}</div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button onclick="acceptOrder(${o.order_id})" class="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition shadow-sm">
+                Accept Order
+              </button>
+              <button onclick="rejectOrder(${o.order_id})" class="px-3 py-2 border rounded-xl text-xs text-slate-500 hover:bg-slate-50 transition">
+                Decline
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.warn("Failed to load pool:", e);
+      }
+    }
+
+    async function acceptOrder(orderId) {
+      try {
+        const res = await fetch(`/delivery/orders/${orderId}/accept`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        showToast(data.message);
+        switchTab("active");
+        await refreshActiveOrder();
+      } catch (e) {
+        showToast(e.message || "Failed to accept order");
+      }
+    }
+
+    async function rejectOrder(orderId) {
+      try {
+        const res = await fetch(`/delivery/orders/${orderId}/reject`, { method: "POST" });
+        await res.json();
+        showToast("Order declined.");
+        loadAvailableOrders();
+      } catch (e) {
+        showToast("Error declining order");
+      }
+    }
+
+    // --- Earnings ---
+    async function loadEarnings() {
+      try {
+        const res = await fetch("/delivery/earnings");
+        const data = await res.json();
+
+        document.getElementById("statTodayEarnings").innerText = `₹${data.summary.today.toFixed(2)}`;
+        document.getElementById("statWeekEarnings").innerText = `₹${data.summary.this_week.toFixed(2)}`;
+
+        const tbody = document.getElementById("earningsTableBody");
+        if (!data.trips.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400">No completed trips logged yet.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.trips.map(t => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-2 font-bold text-slate-800">${t.order_number}</td>
+            <td class="py-3 px-2">${t.crop}</td>
+            <td class="py-3 px-2 text-slate-500">${t.date}</td>
+            <td class="py-3 px-2">₹${t.base_fee.toFixed(2)}</td>
+            <td class="py-3 px-2">₹${t.distance_fee.toFixed(2)}</td>
+            <td class="py-3 px-2 font-extrabold text-emerald-600">₹${t.total.toFixed(2)}</td>
+            <td class="py-3 px-2"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">${t.status}</span></td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.warn("Error loading earnings:", e);
+      }
+    }
+
+    // --- KYC Submit ---
+    async function submitKYC(e) {
+      e.preventDefault();
+      const payload = {
+        driving_license_no: document.getElementById("kycLicense").value,
+        aadhar_no: document.getElementById("kycAadhar").value,
+        vehicle_rc_no: document.getElementById("kycVehicleRc").value,
+        emergency_contact: document.getElementById("kycEmergency").value
+      };
+
+      try {
+        const res = await fetch("/delivery/kyc/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message);
+        }
+      } catch (err) {
+        showToast("Failed to update KYC documents");
+      }
+    }
+
+    async function logoutPartner() {
+      await fetch("/auth/logout", { method: "POST" });
+      window.location.href = "/";
+    }
+
+    // --- Init ---
+    loadDriverProfile().then(() => {
+      refreshActiveOrder();
+      loadAvailableOrders();
+      loadEarnings();
+    });
+  </script>
+</body>
+</html>

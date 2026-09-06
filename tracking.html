@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriDirect AI — Live Order Tracking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); } }
+    .fade-in { animation: fadeIn 0.35s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    #trackingMap { height: 100%; min-height: 520px; border-radius: 1.5rem; }
+    .otp-code-box { letter-spacing: 0.4em; font-size: 1.85rem; font-weight: 800; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='/'">
+        <div class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-emerald-200">
+          🌾
+        </div>
+        <div>
+          <span class="text-lg font-bold text-slate-800">AgriDirect <span class="text-emerald-600">Live Track</span></span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border">
+          <span id="wsStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
+          <span id="wsStatusText">Live GPS Connected</span>
+        </div>
+        <button onclick="window.location.href='/'" class="text-xs text-slate-600 hover:text-slate-900 font-semibold px-2">
+          ← Back to Marketplace
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Banner -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-xs font-semibold border border-slate-700 flex items-center gap-2"></div>
+
+  <!-- Main Tracking Workspace -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+    <!-- Top Live Stats Floating Bar -->
+    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl font-bold">
+          📦
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 id="trackOrderNumber" class="text-xl font-extrabold text-slate-900">#ORD-0000</h2>
+            <span id="trackStatusBadge" class="text-xs px-3 py-1 rounded-full font-bold bg-blue-100 text-blue-800 border border-blue-200">
+              In Transit
+            </span>
+          </div>
+          <p id="trackCropDetail" class="text-xs text-slate-500 mt-0.5">Organic Potato · 300 kg</p>
+        </div>
+      </div>
+
+      <!-- Real-time ETA & Distance Metric Cards -->
+      <div class="flex items-center gap-4 text-center">
+        <div class="bg-emerald-50 border border-emerald-200 px-5 py-2.5 rounded-2xl">
+          <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Estimated ETA</span>
+          <span id="trackEtaText" class="text-xl font-extrabold text-emerald-700">-- mins</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 px-5 py-2.5 rounded-2xl">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Distance Remaining</span>
+          <span id="trackDistanceText" class="text-xl font-extrabold text-slate-800">-- km</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map & Order Timeline Layout -->
+    <div class="grid lg:grid-cols-12 gap-6">
+
+      <!-- Left Column: Interactive Leaflet Live Map -->
+      <div class="lg:col-span-8 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col space-y-3">
+        <div class="flex items-center justify-between px-2">
+          <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <span>🛰️</span> Real-time OpenStreetMap & OSRM Polyline Routing
+          </span>
+          <span id="liveSpeedText" class="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+            Speed: 0 km/h
+          </span>
+        </div>
+
+        <div id="trackingMap" class="w-full relative shadow-inner"></div>
+      </div>
+
+      <!-- Right Column: Status Stepper, Driver Card & Buyer OTP -->
+      <div class="lg:col-span-4 space-y-6">
+
+        <!-- 1. Customer Delivery OTP Card -->
+        <div class="bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white p-6 rounded-3xl shadow-xl shadow-orange-200 space-y-3 text-center">
+          <span class="text-[11px] font-bold uppercase tracking-widest text-orange-200">Delivery Confirmation Code</span>
+          <div id="trackDeliveryOtp" class="otp-code-box text-white drop-shadow-md">
+            ------
+          </div>
+          <p class="text-xs text-orange-100 leading-snug">
+            Share this 6-digit OTP with your delivery driver upon produce inspection to complete delivery.
+          </p>
+          <button onclick="copyOtpCode()" class="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold backdrop-blur transition">
+            Copy Code
+          </button>
+        </div>
+
+        <!-- 2. Delivery Partner Card -->
+        <div id="driverCard" class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Delivery Partner</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center text-2xl font-bold">
+                🏍️
+              </div>
+              <div>
+                <h4 id="driverName" class="font-extrabold text-slate-900 text-sm">Suresh Yadav</h4>
+                <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span id="driverVehicle">Bike · MP09AB1234</span>
+                  <span class="text-yellow-500 font-bold" id="driverRating">⭐ 4.9</span>
+                </div>
+              </div>
+            </div>
+            <a id="driverCallBtn" href="tel:9988776655" class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center text-lg hover:bg-emerald-100 transition shadow-sm" title="Call Driver">
+              📞
+            </a>
+          </div>
+        </div>
+
+        <!-- 3. Dynamic Order Timeline Stepper -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-800 text-sm border-b pb-2">Delivery State Progression</h3>
+          <div id="timelineContainer" class="space-y-4 text-xs font-medium">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Leaflet & App Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/static/js/map.js"></script>
+  <script src="/static/js/tracking.js"></script>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = parseInt(urlParams.get("order_id") || "1");
+
+    let leafletMap = null;
+    let vehicleMarker = null;
+    let pickupMarker = null;
+    let dropMarker = null;
+    let trackingPolyline = null;
+    let currentOrderData = null;
+
+    const STATE_MILESTONES = [
+      { key: "CREATED", label: "Order Created", desc: "Order booked and waiting for matching" },
+      { key: "ACCEPTED", label: "Driver Assigned", desc: "Partner accepted delivery" },
+      { key: "GOING_TO_PICKUP", label: "En Route to Farm", desc: "Driver traveling to pickup location" },
+      { key: "ARRIVED_AT_PICKUP", label: "At Farm Gate", desc: "Verifying produce with farmer OTP" },
+      { key: "PICKED_UP", label: "Produce Secured", desc: "Package loaded onto vehicle" },
+      { key: "OUT_FOR_DELIVERY", label: "In Transit to You", desc: "Driver en route to your delivery address" },
+      { key: "ARRIVED_AT_DESTINATION", label: "Arrived at Destination", desc: "Driver outside delivery location" },
+      { key: "DELIVERED", label: "Delivered & Verified", desc: "Completed with customer delivery OTP" }
+    ];
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3500);
+    }
+
+    async function loadTrackingData() {
+      try {
+        const res = await fetch(`/delivery/tracking/${orderId}`);
+        if (!res.ok) {
+          throw new Error("Unable to locate delivery order");
+        }
+        currentOrderData = await res.json();
+        renderTrackingPage(currentOrderData);
+        initTrackingMap(currentOrderData);
+        setupWebSocket();
+      } catch (err) {
+        showToast(err.message || "Error loading order tracking");
+      }
+    }
+
+    function renderTrackingPage(order) {
+      document.getElementById("trackOrderNumber").innerText = order.order_number;
+      document.getElementById("trackCropDetail").innerText = `${order.crop_name} · ${order.quantity} kg`;
+      document.getElementById("trackStatusBadge").innerText = order.status;
+      document.getElementById("trackEtaText").innerText = order.status === "DELIVERED" ? "Completed" : `${order.eta_minutes} mins`;
+      document.getElementById("trackDistanceText").innerText = `${order.distance_remaining_km} km`;
+
+      if (order.delivery_otp_code) {
+        document.getElementById("trackDeliveryOtp").innerText = order.delivery_otp_code;
+      }
+
+      if (order.partner) {
+        document.getElementById("driverName").innerText = order.partner.name;
+        document.getElementById("driverVehicle").innerText = `${order.partner.vehicle_type} · ${order.partner.vehicle_number}`;
+        document.getElementById("driverRating").innerText = `⭐ ${order.partner.rating.toFixed(1)}`;
+        document.getElementById("driverCallBtn").href = `tel:${order.partner.phone}`;
+      }
+
+      renderTimeline(order.status);
+    }
+
+    function renderTimeline(currentStatus) {
+      const container = document.getElementById("timelineContainer");
+      const currentIdx = STATE_MILESTONES.findIndex(m => m.key === currentStatus);
+
+      container.innerHTML = STATE_MILESTONES.map((m, idx) => {
+        const isDone = idx < currentIdx;
+        const isCurrent = idx === currentIdx;
+
+        const iconBg = isDone
+          ? "bg-emerald-600 text-white"
+          : isCurrent
+            ? "bg-orange-500 text-white shadow-md shadow-orange-200"
+            : "bg-slate-200 text-slate-500";
+
+        const textColor = isCurrent ? "text-orange-600 font-extrabold" : isDone ? "text-slate-800" : "text-slate-400";
+
+        return `
+          <div class="flex items-start gap-3 fade-in">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${iconBg}">
+              ${isDone ? '✓' : idx + 1}
+            </div>
+            <div>
+              <div class="font-bold ${textColor}">${m.label}</div>
+              <div class="text-[11px] text-slate-400 leading-tight">${m.desc}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function initTrackingMap(order) {
+      const pickupLat = order.pickup.latitude;
+      const pickupLon = order.pickup.longitude;
+      const dropLat = order.delivery.latitude;
+      const dropLon = order.delivery.longitude;
+      const currentLat = order.current_position.latitude;
+      const currentLon = order.current_position.longitude;
+
+      if (!leafletMap) {
+        leafletMap = initAgriMap("trackingMap", [currentLat, currentLon], 13);
+      }
+
+      // Farm Gate Marker
+      if (!pickupMarker) {
+        pickupMarker = L.marker([pickupLat, pickupLon], {
+          icon: createCustomMarkerIcon("🌾", "bg-emerald-600 text-white")
+        }).addTo(leafletMap).bindPopup(`<b>Farm Gate (Pickup)</b><br>${order.pickup.address}`);
+      }
+
+      // Destination Marker
+      if (!dropMarker) {
+        dropMarker = L.marker([dropLat, dropLon], {
+          icon: createCustomMarkerIcon("🏠", "bg-blue-600 text-white")
+        }).addTo(leafletMap).bindPopup(`<b>Your Delivery Address</b><br>${order.delivery.address}`);
+      }
+
+      // Live Delivery Vehicle Marker
+      if (!vehicleMarker) {
+        vehicleMarker = L.marker([currentLat, currentLon], {
+          icon: createCustomMarkerIcon("🚚", "bg-orange-500 text-white", true)
+        }).addTo(leafletMap).bindPopup("<b>Live Delivery Vehicle</b>");
+      }
+
+      // Fetch and render OSRM route polyline
+      const route = await fetchOSRMRoute(pickupLat, pickupLon, dropLat, dropLon);
+      drawRoutePolyline(leafletMap, route.coordinates, { color: "#059669" });
+    }
+
+    function setupWebSocket() {
+      connectTrackingWebSocket(orderId, {
+        onOpen: () => {
+          document.getElementById("wsStatusDot").className = "w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot";
+          document.getElementById("wsStatusText").innerText = "Live GPS Connected";
+        },
+        onLocationUpdate: (data) => {
+          if (vehicleMarker) {
+            vehicleMarker.setLatLng([data.latitude, data.longitude]);
+          }
+          document.getElementById("trackDistanceText").innerText = `${data.distance_km} km`;
+          document.getElementById("trackEtaText").innerText = `${data.eta_mins} mins`;
+          document.getElementById("liveSpeedText").innerText = `Speed: ${Math.round(data.speed || 0)} km/h`;
+        },
+        onStatusUpdate: (data) => {
+          document.getElementById("trackStatusBadge").innerText = data.status;
+          renderTimeline(data.status);
+          showToast(`🔔 Status Update: ${data.status}`);
+        },
+        onClose: () => {
+          document.getElementById("wsStatusDot").className = "w-2.5 h-2.5 rounded-full bg-yellow-400";
+          document.getElementById("wsStatusText").innerText = "Reconnecting...";
+        }
+      });
+    }
+
+    function copyOtpCode() {
+      const code = document.getElementById("trackDeliveryOtp").innerText.trim();
+      navigator.clipboard.writeText(code).then(() => {
+        showToast("OTP code copied to clipboard!");
+      });
+    }
+
+    // Init
+    loadTrackingData();
+  </script>
+</body>
+</html>
