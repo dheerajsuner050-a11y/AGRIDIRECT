@@ -22,18 +22,32 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 COOKIE_NAME = "agridirect_access_token"
 
+import bcrypt
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 # --- Password Utilities ---
 def hash_password(password: str) -> str:
-    """Hashes password using bcrypt."""
-    return pwd_context.hash(password)
+    """Hashes password using bcrypt with 72-byte safe truncation."""
+    safe_pwd = password[:72]
+    try:
+        return pwd_context.hash(safe_pwd)
+    except Exception:
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(safe_pwd.encode("utf-8"), salt).decode("utf-8")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifies plain password against bcrypt hash, with legacy SHA256 fallback."""
+    safe_pwd = plain_password[:72]
     if hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$"):
-        return pwd_context.verify(plain_password, hashed_password)
+        try:
+            return pwd_context.verify(safe_pwd, hashed_password)
+        except Exception:
+            try:
+                return bcrypt.checkpw(safe_pwd.encode("utf-8"), hashed_password.encode("utf-8"))
+            except Exception:
+                return False
     # Legacy SHA-256 fallback
     sha_hash = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
     return sha_hash == hashed_password
