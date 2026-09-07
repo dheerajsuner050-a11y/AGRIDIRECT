@@ -10,13 +10,17 @@ logger = logging.getLogger("agridirect.database")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./agridirect.db")
 
+# Fix Railway PostgreSQL scheme compatibility (postgres:// -> postgresql://)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 connect_args = {}
 engine_kwargs = {}
 
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
     engine_kwargs = {"connect_args": connect_args}
-elif DATABASE_URL.startswith("mysql"):
+elif DATABASE_URL.startswith("mysql") or DATABASE_URL.startswith("postgresql"):
     engine_kwargs = {
         "pool_pre_ping": True,
         "pool_recycle": 3600,
