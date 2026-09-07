@@ -128,38 +128,7 @@ class RealCropVisionAnalyzer:
 
 # --- AI Crop Recognition & Quality Grader (Zero-Shot CLIP + OpenCV Contours) ---
 class CropQualityGrader:
-    _clip_pipeline = None
-    _clip_loading = False
-    _clip_load_failed = False
     TARGET_VEGETABLES = ["Potato", "Tomato", "Garlic", "Onion", "Carrot"]
-
-    @classmethod
-    def _preload_clip_worker(cls):
-        try:
-            from transformers import pipeline
-            cls._clip_pipeline = pipeline(
-                "zero-shot-image-classification",
-                model="openai/clip-vit-base-patch32"
-            )
-            print("[CropQualityGrader] CLIP model successfully loaded and active.")
-        except Exception as e:
-            print(f"[CropQualityGrader] CLIP model loading notice: {e}")
-            cls._clip_load_failed = True
-        finally:
-            cls._clip_loading = False
-
-    @classmethod
-    def ensure_clip_started(cls):
-        if cls._clip_pipeline is None and not cls._clip_loading and not cls._clip_load_failed:
-            import threading
-            cls._clip_loading = True
-            t = threading.Thread(target=cls._preload_clip_worker, daemon=True)
-            t.start()
-
-    @classmethod
-    def get_clip_pipeline(cls):
-        cls.ensure_clip_started()
-        return cls._clip_pipeline
 
     @classmethod
     def grade(cls, file_bytes: bytes) -> dict:
