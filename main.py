@@ -411,8 +411,42 @@ class LegacyLoginSchema(BaseModel):
     email: str
     password: str
 
+# --- Crop Image URL Helper ---
+_CROP_IMAGE_MAP: dict[str, str] = {
+    "Potato":     "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=500&auto=format&fit=crop&q=60",
+    "Tomato":     "https://images.unsplash.com/photo-1524593166156-312f362cada0?w=500&auto=format&fit=crop&q=60",
+    "Onion":      "https://images.unsplash.com/photo-1508747703725-719777637510?w=500&auto=format&fit=crop&q=60",
+    "Garlic":     "https://images.unsplash.com/photo-1615477550927-6ec8445823f0?w=500&auto=format&fit=crop&q=60",
+    "Carrot":     "https://images.unsplash.com/photo-1447175008436-054170c2e979?w=500&auto=format&fit=crop&q=60",
+    "Cabbage":    "https://images.unsplash.com/photo-1594282486552-05b4d80fbb9f?w=500&auto=format&fit=crop&q=60",
+    "Cauliflower":"https://images.unsplash.com/photo-1568584711075-3d021a7c3ca3?w=500&auto=format&fit=crop&q=60",
+    "Spinach":    "https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500&auto=format&fit=crop&q=60",
+    "Wheat":      "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=500&auto=format&fit=crop&q=60",
+    "Rice":       "https://images.unsplash.com/photo-1536304929831-ee1ca9d44906?w=500&auto=format&fit=crop&q=60",
+    "Maize":      "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=500&auto=format&fit=crop&q=60",
+    "Corn":       "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=500&auto=format&fit=crop&q=60",
+    "Soybean":    "https://images.unsplash.com/photo-1599685315640-4a960e8c92c3?w=500&auto=format&fit=crop&q=60",
+    "Sugarcane":  "https://images.unsplash.com/photo-1599538135793-b95b20f49d79?w=500&auto=format&fit=crop&q=60",
+    "Banana":     "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=500&auto=format&fit=crop&q=60",
+    "Mango":      "https://images.unsplash.com/photo-1553279768-865429fa0078?w=500&auto=format&fit=crop&q=60",
+    "Apple":      "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=500&auto=format&fit=crop&q=60",
+    "Grapes":     "https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=500&auto=format&fit=crop&q=60",
+    "Chilli":     "https://images.unsplash.com/photo-1583119022894-919a68a3d0e3?w=500&auto=format&fit=crop&q=60",
+    "Brinjal":    "https://images.unsplash.com/photo-1598512752271-33f913a5af13?w=500&auto=format&fit=crop&q=60",
+    "Peas":       "https://images.unsplash.com/photo-1587486937290-76d2231cf504?w=500&auto=format&fit=crop&q=60",
+}
+
+def get_crop_image(crop_name: str) -> str:
+    """Return a curated Unsplash image URL for the given crop name.
+    Falls back to the platform default crop image if the crop is not in the map.
+    Case-insensitive lookup with title-case normalisation.
+    """
+    return _CROP_IMAGE_MAP.get(crop_name.strip().title(), DEFAULT_CROP_IMAGE)
+
+
 # --- Seed Initial Demo Data with Bcrypt Passwords ---
 def seed_base_users():
+
     db = SessionLocal()
     try:
         # 1. Farmer
