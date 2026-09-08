@@ -26,10 +26,13 @@ RUN mkdir -p static/uploads/crops
 EXPOSE 8000
 
 # Default Environment Variables
+# NOTE: HOST must remain 0.0.0.0 for Railway/Docker to route external traffic correctly.
+#       PORT is injected at runtime by Railway; defaults to 8000 for local Docker runs.
 ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV JWT_SECRET=agridirect_live_production_secret_key_2026_super_secure
 ENV DEMO_MODE=true
 
-# Launch Uvicorn application server binding dynamically to $PORT provided by Railway
+# Launch Uvicorn — always bind to 0.0.0.0 so Railway's reverse proxy can reach the container.
+# PORT is supplied by Railway at runtime; the default 8000 is used for local docker-compose runs.
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

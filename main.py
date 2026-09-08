@@ -56,7 +56,7 @@ DEFAULT_CROP_IMAGE = "https://images.unsplash.com/photo-1518977676601-b53f82aba6
 # --- CSRF Token Cookie Name ---
 CSRF_COOKIE_NAME = "agridirect_csrf_token"
 CSRF_HEADER_NAME = "x-csrf-token"
-CSRF_EXEMPT_PATHS = {"/auth/login", "/auth/register", "/delivery/auth/login", "/delivery/auth/register", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
+CSRF_EXEMPT_PATHS = {"/health", "/api/health", "/auth/login", "/auth/register", "/delivery/auth/login", "/delivery/auth/register", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
 
 # --- Real-Time Computer Vision & Image Pixel Analyzer ---
 class RealCropVisionAnalyzer:
@@ -129,6 +129,10 @@ class RealCropVisionAnalyzer:
 # --- AI Crop Recognition & Quality Grader (Zero-Shot CLIP + OpenCV Contours) ---
 class CropQualityGrader:
     TARGET_VEGETABLES = ["Potato", "Tomato", "Garlic", "Onion", "Carrot"]
+
+    @classmethod
+    def get_clip_pipeline(cls):
+        return None
 
     @classmethod
     def grade(cls, file_bytes: bytes) -> dict:
@@ -654,6 +658,18 @@ async def delivery_tracking_ws(websocket: WebSocket, order_id: int):
     except Exception:
         delivery_ws_manager.disconnect(order_id, websocket)
 
+# --- Health Check Routes for Railway & Cloud Orchestrators ---
+@app.get("/health")
+@app.get("/api/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "agridirect-ai",
+        "version": "5.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
 # --- Frontend Page Routes ---
 @app.get("/")
 def serve_home():
@@ -1059,3 +1075,25 @@ def get_my_orders(user: User = Depends(get_current_user), db: Session = Depends(
             "tracking_url": f"/tracking.html?order_id={o.id}"
         })
     return results
+
+
+if __name__ == "__main__":
+    import sys
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    reload_opt = os.getenv("RELOAD", "true").lower() in ("true", "1", "yes")
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("ENVIRONMENT") == "production":
+        reload_opt = False
+
+    print("\n=============================================================")
+    print(" [>] AgriDirect AI Platform Server")
+    print("-------------------------------------------------------------")
+    print(f" [*] Listening  : http://{host}:{port}")
+    print(f" [*] Environment: {os.getenv('ENVIRONMENT', 'production')}")
+    print(f" [*] Reload Mode: {reload_opt}")
+    print("=============================================================\n")
+
+    uvicorn.run("main:app", host=host, port=port, reload=reload_opt)
